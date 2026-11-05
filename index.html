@@ -455,6 +455,26 @@
       return sc;
     }
 
+    // No design: build the plate the user tried, same sizing steps as designPadEye, then the normal checks run on it.
+    function attemptPlate(c) {
+      const PE = PadEye;
+      let typ, size, auto = null;
+      const tryD = (sh, tf) => { try { return PE.designPadEye(c.mgw, c.nPe, c.theta, c.k, c.re, c.ropeMm, c.tol, c.ori, null, null, sh, c.tilt, c.oop, tf); } catch (e) { return null; } };
+      if (c.shackle && c.shackle !== PE.SHACKLE_AUTO) { const sp = c.shackle.indexOf(" "); typ = c.shackle.slice(0, sp); size = c.shackle.slice(sp + 1); auto = tryD(c.shackle, null); }
+      else { auto = tryD(PE.SHACKLE_AUTO, null); if (auto) { typ = auto.shackle_type; size = auto.shackle_size; } else { const cand = PE.autoShackle(c.mgw, c.nPe, c.theta, c.k)[0]; if (!cand || !cand.length) return null; [typ, size] = cand[0]; } }
+      const sh = PE.SHACKLES[typ][size];
+      const hole = PE.tableHole(size, sh.B);
+      const Dh = hole.dia ? hole.dia : (auto ? auto.Dh : null);
+      if (!Dh) return null;
+      const t = c.tFix || (auto ? auto.t : PE.PLATE_THICKNESSES.find((p) => PE.JAW_FILL_MIN * sh.A - 1e-9 <= p && p <= sh.A + 1e-9));
+      if (!t) return null;
+      const P = PE.designLoad(c.mgw, c.nPe, c.theta, c.k)[0] / 1000.0, step = PE.DESIGN_STEP_IN;
+      const Rr = PE.ceilStep(3 * P / (2 * c.re * t) + Dh / 2, step);
+      const b = c.bFix || PE.ceilStep(2 * Rr, step);
+      const d = { shackle_type: typ, shackle_size: size, t, R: Rr, Dh, b, h: Rr, hole };
+      if (dz.cheek === "1") { const tc = dnum("tc"), Rc = dnum("Rc"), w = dnum("w"); if ([tc, Rc, w].every((v) => Number.isFinite(v) && v > 0)) { d.tc = tc; d.Rc = Rc; d.w = w; } }
+      return d;
+    }
     function runDesign() {
       const st = STAGES[dz.stage];
       const single = dz.single === "1";
@@ -495,6 +515,7 @@
           tFix = dnum("tset");
           if (!(Number.isFinite(tFix) && tFix > 0)) throw new Error("Plate thickness must be a number, or leave it blank for auto.");
         }
+        { const bs = String(dz.bset ?? "").trim(); out.ctx = { mgw, nPe, theta, k, re, ropeMm, tol, ori, shackle, tilt: st.orient === "laid" && !single ? tilt : null, oop, tFix, bFix: bs !== "" && Number.isFinite(dnum("bset")) ? dnum("bset") : null }; }
         try {
           out.d = PadEye.designPadEye(mgw, nPe, theta, k, re, ropeMm, tol, ori, null, null, shackle, st.orient === "laid" && !single ? tilt : null, oop, tFix);
         } catch (e) {
@@ -530,6 +551,7 @@
       } catch (err) {
         if (!(err instanceof Error)) throw err;
         out.error = lbMsg(err.message, dnum("mgw"));
+        if (out.ctx) { try { out.attempt = attemptPlate(out.ctx) || out.attempt || null; } catch (e) { /* keep any earlier attempt */ } }
         out.d = null;
       }
       return out;

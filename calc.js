@@ -673,5 +673,6 @@
     ORIENTATIONS, LAID_OVER, SHACKLE_AUTO, SHACKLES, ROPE_IN, MM_PER_IN,
     run, designLoad, designPadEye, score, catalog, blankSheet, pythonFixed, pyStr,
     wllMinT, autoShackle, thimbleH, pyComma0, LB_PER_T, KG_PER_LB, US_ROPE_SIZES, ROPE_THIMBLE,
+    tableHole, ceilStep, DESIGN_STEP_IN, PLATE_THICKNESSES, JAW_FILL_MIN,
   };
 });

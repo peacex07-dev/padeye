@@ -283,6 +283,8 @@
     #form .hstat { font-size: 11px; padding-right: 4px; }
     #form, #topbar, #designOut, #eqs { width: 816px; max-width: 100%; }
     .panel.shk svg { width: 100%; max-height: 230px; }
+    .panel.front { overflow-x: auto; }
+    #views .panel.front svg { max-width: none; }
     .shksvg .dl { stroke: #333; stroke-width: 1; } .shksvg .dt { font-size: 12px; font-weight: 700; fill: #1f3864; }
     @media (min-width: 1100px) and (max-width: 1319px) {
       main { display: flex; flex-direction: column; }
@@ -642,10 +644,10 @@
         if (ls.master_link) { val.ml = `A-1346 stock ${ls.master_link.stock}`; st.ml = P(ls.master_link.util <= 1 && ls.master_link.inside_ok); } else val.ml = "None";
         if (ls.forerunner) st.fore = P(ls.forerunner.util <= 1);
       }
-      if (!ok && o && o.error && /Plate thickness/.test(o.error)) st.tset = "FAIL";
       const fit = (n) => { const f = score && score.fits ? score.fits.find((x) => x.name.startsWith(n)) : null; return f ? P(f.ok) : ""; };
       if (score && score.shackle) { val.jawA = fmt(score.shackle.A, 3); val.pinB = fmt(score.shackle.B, 3); }
-      if (ok && score) {
+      if (score && !score.block) {
+        // Same status fill for a finished design and for an attempted plate (never-stop path).
         if (ls && ls.shackle) st.shackle = P(ls.shackle.utilisation <= 1);
         st.tol = fit("Thimble fits shackle bow");
         const a = fit("Thickness fits shackle jaw"), b = fit("Thickness >= 75");
@@ -668,7 +670,7 @@
       f.querySelectorAll("h2[data-sec]").forEach((h) => {
         const g = h.nextElementSibling, vals = [...g.querySelectorAll(".stat2")].map((e) => e.textContent).filter(Boolean);
         let r = vals.length ? P(vals.every((v) => v === "PASS")) : "";
-        if (h.dataset.sec === "plate" && ok && score && score.pass !== null && score.pass !== undefined) r = P(score.pass && (!vals.length || vals.every((v) => v === "PASS")));
+        if (h.dataset.sec === "plate" && score && score.pass !== null && score.pass !== undefined) r = P(score.pass && (!vals.length || vals.every((v) => v === "PASS")));
         if (h.dataset.sec === "load" || h.dataset.sec === "req") r = ls ? "PASS" : "";
         const e = h.querySelector(".hstat"); e.textContent = r; e.className = "hstat " + (r === "PASS" ? "pass" : r === "FAIL" ? "fail" : "");
       });
@@ -781,7 +783,7 @@
       if (mode !== "design" || !designed) { host.innerHTML = ""; return; }
       const out = designed;
       let html = "";
-      if (out.error) html += `<div class="errbox" title="${esc(out.error)}">No design: ${esc(String(out.error).split(/\.\s/)[0].replace(/\.$/, ""))}</div>`;
+      if (out.error && !out.attempt) html += `<div class="errbox" title="${esc(out.error)}">No design: ${esc(String(out.error).split(/\.\s/)[0].replace(/\.$/, ""))}</div>`;
       if (out.ls) {
         html += `<h2>Lifting set</h2><table class="dz"><tr><th>Item</th><th>Value</th><th>Key values</th></tr>${liftingRows(out, !!out.d)}</table>`;
       }
@@ -860,8 +862,18 @@
           score = null;
           if (designed.attempt) { try { inputs = designInputs(Object.assign({}, designed, { d: designed.attempt })); score = doScore(inputs); } catch (e) { score = null; } }
           document.getElementById("eqs").style.display = "";
-          if (score && !score.block) tables(); else { document.getElementById("checks").innerHTML = `<tr><th>Check</th><th>Result</th><th>Limit</th><th>Util</th><th>Status</th></tr><tr class="bad"><td>No plate to check</td><td></td><td></td><td></td><td>Fail</td></tr>`; document.getElementById("fits").innerHTML = ""; }
-          document.getElementById("stats").innerHTML = `<div class="stat big bad"><b class="fail">FAIL</b><span>No design: ${esc(String(designed.error || "no shackle or plate fits these inputs"))}</span></div>` + (score && !score.block ? `<div class="stat${score.governingU > 1 ? " bad" : ""}"><b>${fmt(score.governingU, 3)}</b><span>${score.governing || ""}</span></div><div class="stat"><b>${fmt(score.rsl, 3)}</b><span>Design load RSL, lb</span></div>` : ""); document.getElementById("chips").innerHTML = ""; paintGov(); }
+          // Never stop: when an attempted plate is scored, squares/CHECKS follow the real score — not a "No design" banner.
+          if (score && !score.block) {
+            document.getElementById("views").style.display = "";
+            paintViews();
+          } else {
+            document.getElementById("views").style.display = "";
+            document.getElementById("checks").innerHTML = `<tr><th>Check</th><th>Result</th><th>Limit</th><th>Util</th><th>Status</th></tr><tr class="bad"><td>No plate to check</td><td></td><td></td><td></td><td>Fail</td></tr>`;
+            document.getElementById("fits").innerHTML = "";
+            document.getElementById("stats").innerHTML = `<div class="stat big bad"><b class="fail">FAIL</b><span>${esc(String(designed.error || "no shackle or plate fits these inputs"))}</span></div>`;
+            document.getElementById("chips").innerHTML = ""; paintGov();
+          }
+        }
         paintStatus();
         paintShackleLabels();
       } else {
@@ -1104,15 +1116,36 @@
     }
 
     function outline(b, h, R) {
-      const half = b / 2, top = h + R, steps = 72, right = [];
-      for (let i = 0; i <= steps; i++) {
-        const y = top * i / steps, dy = y - h;
-        const xCirc = Math.abs(dy) <= R ? Math.sqrt(Math.max(0, R * R - dy * dy)) : 0;
-        right.push([y <= h ? Math.max(half, xCirc) : xCirc, y]);
+      // Counter-clockwise. When b/2 > R: vertical sides, flat shoulders at y=h, true semicircle (no diagonal cut).
+      const half = Math.max(Number(b) / 2, 1e-9), hh = Math.max(Number(h), 0), rr = Math.max(Number(R), 1e-9);
+      const pts = [], stemN = 16, arcN = 48;
+      for (let i = 0; i <= stemN; i++) {
+        const y = hh * i / stemN;
+        let x = half;
+        if (half < rr - 1e-12) {
+          const dy = y - hh;
+          if (Math.abs(dy) <= rr) x = Math.max(half, Math.sqrt(Math.max(0, rr * rr - dy * dy)));
+        }
+        pts.push([x, y]);
       }
-      return right.concat(right.map(([x, y]) => [-x, y]).reverse());
+      if (half > rr + 1e-12) pts.push([rr, hh]);
+      for (let i = 0; i <= arcN; i++) {
+        const a = (i / arcN) * Math.PI;
+        pts.push([rr * Math.cos(a), hh + rr * Math.sin(a)]);
+      }
+      if (half > rr + 1e-12) pts.push([-rr, hh]);
+      for (let i = stemN; i >= 0; i--) {
+        const y = hh * i / stemN;
+        let x = -half;
+        if (half < rr - 1e-12) {
+          const dy = y - hh;
+          if (Math.abs(dy) <= rr) x = -Math.max(half, Math.sqrt(Math.max(0, rr * rr - dy * dy)));
+        }
+        pts.push([x, y]);
+      }
+      pts.push([half, 0]);
+      return pts;
     }
-
 
     /** Label placement. Every diagram label is a <text class="lbl"> with an anchor box (data-a = x0,y0,x1,y1).
      *  After the svg is in the page, placeLabels() measures each label and puts it in the first spot that
@@ -1289,11 +1322,13 @@
       const reach = Math.max(b / 2, R, cheeks ? Rc : 0, Dh / 2, Math.abs(ax), Math.abs(nEnd[0]), Math.abs(vEnd[0]));
       const topY = Math.max(h + Math.max(R, cheeks ? Rc : 0), h + ay, h + nEnd[1], h + vEnd[1]);
       // Pixel margins hold the labels: left for h, right for the force tags, top for the note, bottom for b, the beam and the axes.
-      const PL = 70, PR = 155, PT = 40, PB = 110;
+      const PL = 70, PR = 155, PT = 48, PB = 120;
       const minX = Math.min(-reach, ax, nEnd[0], vEnd[0]) - 1.0;
       const maxX = Math.max(reach, ax, nEnd[0], vEnd[0]) + 0.4;
       const minY = -0.95, maxY = topY + 0.1;
-      const S = Math.min((640 - PL - PR) / (maxX - minX), (460 - PT - PB) / (maxY - minY));
+      // Height-first scale so a long base (b >> 2R) does not squash the head. Width may grow; panel scrolls.
+      const Svert = (320 - PT - PB) / Math.max(maxY - minY, 1e-6);
+      const S = Math.min(Svert, 110 / Math.max(2 * R, 0.5));
       const W = (maxX - minX) * S + PL + PR, Ht = (maxY - minY) * S + PT + PB;
       const X = x => (x - minX) * S + PL, Y = y => (maxY - y) * S + PT;
       const ink = id => mark === id ? "#1e3a5f" : "#5f584c";

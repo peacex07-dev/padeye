@@ -106,6 +106,92 @@
       .panel, table, .stat { break-inside: avoid; }
       input, select { background: #FFF2CC !important; }
     }
+
+    /* ---------- Spreadsheet look (matches Kalun's DNV 2.7-1 workbook) ---------- */
+    :root { --title: #DEEAF1; --input: #FFF2CC; --inink: #7F3F00; --result: #E2EFDA; --ok: #006100; --bad: #9C0006; --soft: #F2F2F2; --muted: #595959; --blue: #0070C0; }
+    body { font: 13px/1.35 "Courier New", Courier, monospace; }
+    button, select, input, table, th, td { font-family: "Courier New", Courier, monospace; }
+    header { border-radius: 0; padding: 8px 10px; }
+    h1 { font-size: 16px; text-transform: uppercase; }
+    .muted { font-size: 11px; }
+    h2, #form h2, #designOut h2, .panel h2 { background: var(--soft); border: 0; margin: 16px 0 4px; padding: 3px 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .02em; }
+    button { border-radius: 0; border: 1px solid #a6a6a6; padding: 4px 10px; font-weight: 700; font-size: 12px; }
+    .modebar button:first-child, .modebar button:last-child { border-radius: 0; }
+    .modebar button.on { background: var(--blue); border-color: var(--blue); }
+    .fgrid { grid-template-columns: repeat(auto-fill, minmax(520px, 1fr)); gap: 0 28px; align-items: stretch; }
+    .fgrid > * { padding: 1px 0 1px 14px; border-bottom: 1px solid #f0f0f0; }
+    .grip { top: 2px; padding: 2px; font-size: 13px; }
+    label.row, label.row:has(> .sym:empty), .read { grid-template-columns: 44px minmax(0, 1fr) 150px 40px; grid-template-areas: "sym lab inp unit"; column-gap: 6px; row-gap: 0; }
+    label.row > .sym:empty { display: block; }
+    label.row > .sym, .read > .sym { color: var(--ink); font-size: 12px; }
+    label.row > :nth-child(2), .read > :nth-child(2) { font-size: 12px; color: var(--ink); }
+    label.row > select { grid-area: inp; grid-column: 3 / 5; grid-row: 1; }
+    label.row[data-mark="stage"], label.row[data-mark="orient"], label.row[data-mark="shackle"], label.row[data-mark="stdshackle"] { grid-column: auto; }
+    label.row > select { grid-column: 3 / 5; }
+    label.row[data-mark="stage"] , label.row[data-mark="orient"] { grid-template-columns: 44px minmax(0, 1fr) 250px 0; }
+    input, select { border: 0; border-radius: 0; background: var(--input); color: var(--inink); font-weight: 700; font-size: 13px; padding: 3px 6px; }
+    input { text-align: right; }
+    input::placeholder { color: #b08a5a; }
+    .unit { font-size: 12px; color: var(--ink); }
+    .read { grid-template-areas: "sym lab val val"; }
+    .read > b { border-radius: 0; padding: 3px 6px; font-size: 13px; text-align: right; }
+    .stats { gap: 0; margin: 12px 0 4px; border: 1px solid #d9d9d9; }
+    .stat { border-radius: 0; padding: 4px 10px; min-width: 170px; font-size: 11px; border-right: 1px solid #fff; }
+    .stat b { font-size: 15px; }
+    table, th, td { font-size: 12px; }
+    th, td { padding: 3px 8px; border-bottom: 1px solid #f0f0f0; }
+    th { background: #fff; color: var(--ink); font-weight: 700; }
+    td.num, table.dz td.pick { font-weight: 700; }
+    .panel { border-radius: 0; border: 1px solid #d9d9d9; }
+    .errbox { border-radius: 0; background: #FFC7CE; color: var(--bad); }
+    .layoutbar button, .copyrow button { font-size: 11px; padding: 2px 8px; background: #fff; }
+    @media (max-width: 700px) {
+      .fgrid { grid-template-columns: 1fr; }
+      label.row, label.row:has(> .sym:empty), .read { grid-template-columns: 30px minmax(0, 1fr) 110px 30px; }
+      label.row[data-mark="stage"], label.row[data-mark="orient"] { grid-template-columns: 30px minmax(0, 1fr); grid-template-areas: "sym lab" "inp inp"; }
+      label.row[data-mark="stage"] > select, label.row[data-mark="orient"] > select { grid-column: 1 / -1; grid-row: 2; }
+      table.dz tr { border-radius: 0; }
+    }
+    @media print { input, select { background: #FFF2CC !important; } }
+
+    /* ---------- Two-column: inputs left, figures right ---------- */
+    main { display: flex; flex-direction: column; }
+    #modebar { order: 1; } #form { order: 2; } main > div:has(> #views) { order: 3; } #stats { order: 4; } #designOut { order: 5; } #eqs { order: 6; }
+    label.row[data-mark="stage"], label.row[data-mark="orient"] { grid-template-columns: 44px minmax(0, 1fr) minmax(0, 300px) 0; }
+    label.row[data-mark="stage"] > select, label.row[data-mark="orient"] > select { text-overflow: ellipsis; }
+    .drawings .panel svg, .drawings #side svg { max-width: 100%; }
+    @media (min-width: 1100px) {
+      header, main { width: min(1880px, calc(100% - 28px)); }
+      main { display: grid; grid-template-columns: minmax(560px, 1fr) minmax(0, 1.05fr); column-gap: 22px; align-items: start; }
+      main > * { grid-column: 1; min-width: 0; }
+      main > div:has(> #views) { grid-column: 2; grid-row: 1 / span 6; position: sticky; top: 0; max-height: 100vh; overflow-y: auto; }
+      #modebar { grid-row: 1; } #form { grid-row: 2; } #stats { grid-row: 3; } #designOut { grid-row: 4; } #eqs { grid-row: 5; }
+      .fgrid { grid-template-columns: 1fr; }
+      #views .drawings { grid-template-columns: 1fr 1fr; margin-top: 14px; gap: 10px; }
+      #views .panel.front { grid-column: 1 / -1; }
+      #views .drawings .panel.front svg { max-width: 620px; }
+      .stat { min-width: 0; flex: 1 1 150px; }
+    }
+    @media (max-width: 1099px) { .drawings { grid-template-columns: 1fr; } }
+
+    /* ---------- fixes: full-width dropdown text, figures fit the screen ---------- */
+    #form label.row:has(> select) { grid-template-columns: 44px minmax(0, 1fr) minmax(0, 370px) 0; }
+    @media (max-width: 700px) {
+      #form label.row:has(> select) { grid-template-columns: 30px minmax(0, 1fr); grid-template-areas: "sym lab" "inp inp"; }
+      label.row:has(> select) > select { grid-column: 1 / -1; grid-row: 2; }
+    }
+    @media (min-width: 1100px) {
+      #views .drawings { grid-template-columns: 1fr 1fr; }
+      #views .panel { padding: 6px 8px 8px; }
+      #views .panel h2 { margin: 0 0 4px; }
+      #views .panel.front, #views .panel.bowp { grid-column: 1 / -1; }
+      #views .drawings .panel svg { width: auto; max-width: 100%; margin: 0 auto; }
+      #views .panel.front svg { max-height: calc(44vh - 40px); }
+      #views #side svg, #views #post svg { max-height: calc(27vh - 20px); }
+      #views .panel.bowp svg { max-height: 11vh; }
+      main > div:has(> #views) { padding-top: 0; }
+      #views .drawings { margin-top: 0; }
+    }
   </style>
 </head>
 <body>

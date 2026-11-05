@@ -228,7 +228,7 @@
     };
     let mode = "design";
     let checkInputs = null;
-    let dz = { stage: "1", single: "0", mgw: "50000", theta: "45", k: "1", re: "50", oop: "0", tilt: "", shackle: "auto", rope: "auto", tol: "0", fore: "0", bset: "" };
+    let dz = { stage: "1", single: "0", mgw: "50000", theta: "45", k: "1", re: "50", oop: "0", tilt: "", shackle: "auto", rope: "auto", tol: "0", fore: "0", bset: "", cheek: "0", tc: "", Rc: "", w: "" };
     let designed = null;   // { error, ls, d }
     const dnum = (key) => Number(String(dz[key] ?? "").replace(/,/g, "").trim());
 
@@ -290,6 +290,14 @@
           if (!d.result.checks.every((c) => c.ok)) throw new Error(`Below minimum ${fmt(d.b, 4)} in`);
           d.b = bu;
         }
+        // Cheek plates: user enters tc, Rc, w; no sizing. The Python checks (Eq. 4.15, Rc <= R, t + 2tc <= A) judge them.
+        if (dz.cheek === "1") {
+          const tc = dnum("tc"), Rc = dnum("Rc"), w = dnum("w");
+          if (![tc, Rc, w].every((v) => Number.isFinite(v) && v > 0)) throw new Error("Enter cheek tc, Rc and w");
+          const d = out.d;
+          d.tc = tc; d.Rc = Rc; d.w = w;
+          d.result = PadEye.run(mgw, nPe, theta, k, d.shackle_type, d.shackle_size, d.t, d.R, d.Dh, d.b, d.h, tc, Rc, w, re, ropeMm, tol, ori, 0.0, st.orient === "laid" && !single ? tilt : null, oop);
+        }
         // 3. lifting set again with the shackle the plate design settled on
         out.ls = LiftingSet.design({ mgwLb: mgw, nLegs: nPe, angleHDeg: theta, k, forerunner: fore, shackle: `${out.d.shackle_type} ${out.d.shackle_size}`, ropeLabel: ropeChoice });
         out.ropeLabel = ropeLabel;
@@ -312,7 +320,7 @@
         tilt: orient === "laid" && !single ? String(i.tilt === null ? 90 - i.theta : i.tilt) : "",
         oop: String(dz.stage === "5" ? 0 : i.oop), rope: out.ropeLabel, tol: String(i.tol),
         shackle: `${d.shackle_type} ${d.shackle_size}`,
-        t: String(d.t), R: String(d.R), Dh: String(d.Dh), b: String(d.b), h: String(d.h), tc: "0", Rc: "0", w: "0",
+        t: String(d.t), R: String(d.R), Dh: String(d.Dh), b: String(d.b), h: String(d.h), tc: String(d.tc || 0), Rc: String(d.Rc || 0), w: String(d.w || 0),
       };
     }
 
@@ -339,6 +347,8 @@
         ${dfield("k", "k", "Uneven-load factor (1 = even)", "")}
         ${dfield("re", "Re", "Plate yield strength", "ksi")}
         ${dfield("bset", "b", "Base length (blank = auto)", "in", "auto")}
+        ${dselect("cheek", "", "Cheek plates", [["0", "None"], ["1", "Include"]], dz.cheek)}
+        ${dz.cheek === "1" ? dfield("tc", "tc", "Cheek thickness, each side", "in") + dfield("Rc", "Rc", "Cheek radius", "in") + dfield("w", "w", "Cheek weld leg", "in") : ""}
         ${dz.stage === "5" ? dfield("tilt", "", "Plate tilt from vertical (blank = auto)", "deg", "auto") : dfield("oop", "φ", "Sling angle out of plate plane", "deg")}
         </div>
         <h2>Shackle and rope</h2><div class="fgrid">
@@ -412,7 +422,7 @@
           ${drow("Dh", "Hole diameter Dh", `${fmt(d.Dh, 3)} in`, `pin ${fmt(sh.B, 3)} in${hole ? " · " + esc(hole) : ""}`)}
           ${drow("b", "Base width b", `${fmt(d.b, 4)} in`, "")}
           ${drow("h", "Hole centre to base h", `${fmt(d.h, 4)} in`, "")}
-          ${drow("", "Cheeks", "None", "")}
+          ${drow("tc", "Cheeks", d.tc ? `tc ${fmt(d.tc, 3)} in, Rc ${fmt(d.Rc, 3)} in, w ${fmt(d.w, 3)} in` : "None", "")}
           ${drow("", "Design load RSL", `${fmt(r.rsl, 0)} lb`, "")}
           </table>`;
       }
@@ -964,7 +974,7 @@
       if (dkey) {
         dz[dkey] = event.target.value;
         mark = dkey;
-        refreshAll(dkey === "stage" || dkey === "single");
+        refreshAll(dkey === "stage" || dkey === "single" || dkey === "cheek");
         return;
       }
       const key = event.target.dataset.key;

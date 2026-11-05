@@ -217,6 +217,28 @@
       #form .rec:not(:empty)::before { content: "Recommended "; font-weight: 400; }
       #form .colhead { display: none; }
     }
+
+    /* ---------- jaw-fit limits in Recommended; wider description ---------- */
+    #form label.row, #form label.row:has(> .sym:empty), #form label.row:has(> select), #form .read, #form .colhead { grid-template-columns: 34px minmax(0, 1fr) 160px 330px 36px; }
+    #form .rec { font-size: 11px; }
+    #form .read > :nth-child(3) { grid-area: unit; }
+    @media (min-width: 1100px) { main { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); } }
+    @media (max-width: 1099px) {
+      #form label.row, #form label.row:has(> .sym:empty), #form label.row:has(> select), #form .read, #form .colhead { grid-template-columns: 30px minmax(0, 1fr) 160px 330px 34px; }
+    }
+    @media (max-width: 700px) {
+      #form label.row, #form label.row:has(> .sym:empty), #form label.row:has(> select), #form .read { grid-template-columns: 30px minmax(0, 1fr) 34px; }
+      #form .read { grid-template-areas: "sym lab lab" ". rec unit"; }
+    }
+
+    /* two columns only when the input rows fit on one line */
+    @media (min-width: 1100px) and (max-width: 1259px) {
+      main { display: flex; flex-direction: column; }
+      main > div:has(> #views) { position: static; max-height: none; overflow: visible; }
+      #views .drawings .panel.front svg { max-height: none; }
+      #views #side svg, #views #post svg, #views .panel.bowp svg { max-height: none; }
+    }
+    @media (min-width: 1260px) { main { grid-template-columns: minmax(820px, 1.6fr) minmax(0, 1fr); } }
   </style>
 </head>
 <body>
@@ -469,6 +491,7 @@
         <div class="colhead"><span></span><span></span><span>Recommended</span><span>Input</span><span>Unit</span></div>
         <h2>Shackle</h2><div class="fgrid">
         ${dselect("stdshackle", "", "Shackle", shOpts, dz.shackle).replace('data-dkey="stdshackle"', 'data-dkey="shackle"').replace('data-rec="stdshackle"', 'data-rec="shackle"')}
+        <div class="read" data-mark="jawA"><span class="sym">A</span><span>Jaw width</span><span class="unit">in</span><span class="rec" data-rec="jawA"></span></div>
         </div>
         <h2>Lift</h2><div class="fgrid">
         ${dselect("stage", "", "Lift type", stageOpts, dz.stage)}
@@ -504,6 +527,17 @@
         rope: recWith("rope", "auto", (o) => o.ropeLabel),
       };
       if (dz.stage === "5") recs.tilt = recWith("tilt", "", (o) => fmtDeg(90 - o.in.theta));
+      // Jaw-fit limits from the shackle table (Python: 0.75A <= t <= A, t + 2tc <= A)
+      const shName = dz.shackle !== "auto" ? dz.shackle : (designed && designed.d ? `${designed.d.shackle_type} ${designed.d.shackle_size}` : recs.shackle);
+      const sp = shName ? shName.indexOf(" ") : -1;
+      const shRow = sp > 0 ? (PadEye.SHACKLES[shName.slice(0, sp)] || {})[shName.slice(sp + 1)] : null;
+      if (shRow) {
+        const A = shRow.A;
+        recs.jawA = fmt(A, 3);
+        recs.tset = `${recs.tset ? recs.tset + " " : ""}(${fmt(0.75 * A, 3)} to ${fmt(A, 3)})`;
+        const tNow = String(dz.tset ?? "").trim() !== "" ? dnum("tset") : (designed && designed.d ? designed.d.t : Number(recWith("tset", "", (o) => o.d.t)) || NaN);
+        if (dz.cheek === "1" && Number.isFinite(tNow) && tNow > 0) recs.tc = `max ${fmt((A - tNow) / 2, 3)}`;
+      }
       document.querySelectorAll("#form [data-rec]").forEach((el) => { el.textContent = recs[el.dataset.rec] ?? ""; });
     }
 

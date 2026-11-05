@@ -51,6 +51,8 @@
     .modebar button:first-child { border-radius: 6px 0 0 6px; }
     .modebar button:last-child { border-radius: 0 6px 6px 0; }
     .modebar button.on { background: var(--blue); color: #fff; border-color: var(--blue); }
+    .copyrow { margin: 10px 0 0; }
+    .copyrow button { font-size: 13px; padding: 5px 10px; background: var(--soft); border-color: #b9c0c8; }
     .errbox { background: #f7e1e1; color: var(--bad); padding: 9px 12px; margin: 8px 0; font-weight: 700; border-radius: 6px; }
     .warn { color: var(--bad); font-weight: 700; }
     table.dz td:first-child { font-weight: 700; width: 190px; }
@@ -228,6 +230,19 @@
     let designed = null;   // { error, ls, d }
     const dnum = (key) => Number(String(dz[key] ?? "").replace(/,/g, "").trim());
 
+    // Table 8-1 stops at 25,000 kg. Say it in lb, the unit the page takes.
+    function lbMsg(msg, mgwLb) {
+      const limitLb = Math.floor(25000 / PadEye.KG_PER_LB);
+      return String(msg).replace(/Rating [\d,.]+ kg exceeds Table 8-1 range \([\d,.]+ kg\)/, `Rating ${fmt(mgwLb, 0)} lb exceeds Table 8-1 limit (${fmt(limitLb, 0)} lb)`);
+    }
+    // Same score as PadEye.score, plus a short stop when the cheek weld leg is missing.
+    function doScore(inp) {
+      const sc = PadEye.score(inp);
+      if (sc && !sc.block && Number(inp.tc) > 0 && !(Number(inp.w) > 0)) { sc.block = "Enter weld leg w"; sc.pass = null; }
+      if (sc && sc.block) sc.block = lbMsg(sc.block, Number(String(inp.mgw).replace(/,/g, "")));
+      return sc;
+    }
+
     function runDesign() {
       const st = STAGES[dz.stage];
       const single = dz.single === "1";
@@ -242,6 +257,9 @@
         if (dz.stage === "5" && !single && String(dz.tilt).trim() !== "") {
           tilt = dnum("tilt");
           if (!Number.isFinite(tilt)) throw new Error("Tilt must be a number, or leave it blank for auto.");
+          if (theta >= 45 && theta < 90 && Math.abs((90 - theta) - tilt) > 2.5 + 1e-9) {
+            throw new Error(`Tilt must be within 2.5° of sling (90 − θ = ${fmtDeg(90 - theta)}°)`);
+          }
         }
         out.in = { mgw, theta, k, re, tol, oop, tilt };
         const fore = dz.fore === "1";
@@ -265,7 +283,7 @@
         out.ropeLabel = ropeLabel;
       } catch (err) {
         if (!(err instanceof Error)) throw err;
-        out.error = err.message;
+        out.error = lbMsg(err.message, dnum("mgw"));
         out.d = null;
       }
       return out;
@@ -308,7 +326,7 @@
         ${single ? "" : dfield("theta", "θ", "Sling angle from horizontal", "deg")}
         ${dfield("k", "k", "Asymmetry factor", "—")}
         ${dfield("re", "Re", "Plate yield", "ksi")}
-        ${dz.stage === "5" && !single ? dfield("tilt", "tilt", "Laid-over tilt from vertical (blank = auto)", "deg", "auto") : dfield("oop", "φ", "Out of plane angle", "deg")}
+        ${single ? "" : dz.stage === "5" ? dfield("tilt", "tilt", "Laid-over tilt from vertical (blank = auto)", "deg", "auto") : dfield("oop", "φ", "Out of plane angle", "deg")}
         </div>
         <h2>Shackle and rope</h2><div class="fgrid">
         ${dselect("stdshackle", "—", "Shackle", shOpts, dz.shackle).replace('data-dkey="stdshackle"', 'data-dkey="shackle"')}
@@ -335,7 +353,7 @@
       const tw = n === 1 ? 1 : (1 / n) / Math.cos(ls.beta * Math.PI / 180);
       rows.push(drow("", "Lifting set", n === 1 ? "Single pad eye, single leg" : `${n}-leg set, ${n} pad eyes`,
         `Rg ${fmt(ls.mgw_lb, 0)} lb · WLLmin ${fmt(ls.wll_min_t, 3)} t${n === 1 ? "" : ` · sling ${fmtDeg(ls.angle_h)}°`}`));
-      rows.push(drow("", "Load per leg", lbT(ls.wll_req_t),
+      rows.push(drow("", "Required WLL per leg", lbT(ls.wll_req_t),
         `k ${fmt(out.in.k, 3)}`));
       if (ls.leg) {
         rows.push(drow("rope", "Sling legs", `${ls.leg.size} wire rope`, `WLL ${fmt(ls.leg.wll_lb, 0)} lb · Util ${fmt(ls.leg.util, 3)}${ls.leg.size === '2-1/2"' ? " · no G-414 thimble" : ""}`));
@@ -388,12 +406,35 @@
       host.innerHTML = html;
     }
 
+    let checkSeeded = false;
+    function seedCheck() {
+      if (designed && designed.d) return designInputs(designed);
+      // design failed: keep the loads from the Design form, plate from the sample sheet
+      const b = PadEye.blankSheet(), st = STAGES[dz.stage], single = dz.single === "1";
+      const th = single ? "90" : String(dz.theta);
+      const tiltAuto = Number.isFinite(90 - Number(th)) ? String(90 - Number(th)) : "30";
+      return Object.assign(b, {
+        mgw: String(dz.mgw), n: String(single ? 1 : st.legs), theta: th, k: String(dz.k), re: String(dz.re), tol: String(dz.tol),
+        orient: single ? (st.orient === "horizontal" ? "horizontal" : "vertical") : st.orient,
+        tilt: st.orient === "laid" && !single ? (String(dz.tilt).trim() !== "" ? String(dz.tilt) : tiltAuto) : "",
+        oop: dz.stage === "5" ? "0" : String(dz.oop),
+      });
+    }
+    function canCopyDesign() { try { return !!runDesign().d; } catch (e) { return false; } }
+    function copyDesigned() {
+      const o = runDesign();
+      if (!o.d) return;
+      inputs = designInputs(o);
+      checkInputs = Object.assign({}, inputs);
+      refreshAll(true);
+    }
+
     function setMode(next) {
       if (next === mode) return;
       if (next === "check") {
-        // carry the designed plate over so it can be tweaked
-        if (designed && designed.d) checkInputs = designInputs(designed);
-        inputs = Object.assign({}, checkInputs || PadEye.blankSheet());
+        // first visit only: start from the designed plate. After that keep the user's own edits.
+        if (!checkSeeded) { checkInputs = seedCheck(); checkSeeded = true; }
+        inputs = Object.assign({}, checkInputs);
         mode = "check";
       } else {
         checkInputs = Object.assign({}, inputs);
@@ -411,14 +452,14 @@
         document.getElementById("eqs").style.display = ok ? "" : "none";
         if (redrawForm) drawDesignForm();
         renderDesignOut();
-        if (ok) { inputs = designInputs(designed); score = PadEye.score(inputs); paintViews(); }
+        if (ok) { inputs = designInputs(designed); score = doScore(inputs); paintViews(); }
         else document.getElementById("stats").innerHTML = `<div class="stat"><b class="fail">No design</b><span>Change the inputs</span></div>`;
       } else {
         document.getElementById("views").style.display = "";
         document.getElementById("eqs").style.display = "";
         designed = null;
         renderDesignOut();
-        score = PadEye.score(inputs);
+        score = doScore(inputs);
         if (redrawForm) drawForm();
         paintViews();
       }
@@ -429,18 +470,21 @@
       for (const [group, id, symbol, label, unit] of FIELDS) (groups[group] ||= []).push(field(id, symbol, label, unit));
       const shOpts = catalog.shackles.map(s => `<option value="${esc(s.value)}"${s.value === inputs.shackle ? " selected" : ""}>${esc(s.value)}${s.approved ? "" : " — product certificate"}</option>`).join("");
       const ropes = catalog.ropes.map(s => `<option value="${esc(s)}"${s === inputs.rope ? " selected" : ""}>${esc(s)}</option>`).join("");
+      const one = inputs.n === "1", laid = inputs.orient === "laid" && !one;
       const nSel = ["1", "2", "4"].map(n => `<option value="${n}"${inputs.n === n ? " selected" : ""}>${n} pad eye${n === "1" ? "" : "s"}</option>`).join("");
       const oSel = [["vertical", "Vertical, on top of the post"], ["horizontal", "Horizontal, inside face of the post"], ["laid", "Laid over, tilted with the sling"]]
+        .filter(([v]) => !(one && v === "laid"))
         .map(([v, label]) => `<option value="${v}"${inputs.orient === v ? " selected" : ""}>${label}</option>`).join("");
       const sh = score.shackle || {};
       document.getElementById("form").innerHTML = `
+        ${canCopyDesign() ? '<div class="copyrow noprint"><button type="button" id="copyDesign">Copy designed plate</button></div>' : ""}
         <h2>Load</h2><div class="fgrid">
         ${groups.Load[0]}
         <label class="row${mark === "n" ? " on" : ""}" data-mark="n"><span class="sym">n</span><span>Number of pad eyes</span><select data-key="n">${nSel}</select><span></span></label>
-        ${groups.Load.slice(1, 4).join("")}
+        ${(one ? groups.Load.slice(2, 4) : groups.Load.slice(1, 4)).join("")}
         <label class="row${mark === "orient" ? " on" : ""}" data-mark="orient"><span class="sym">—</span><span>Where the plate sits</span><select data-key="orient">${oSel}</select><span></span></label>
-        ${inputs.orient === "laid" ? "" : field("oop", "φ", "Out of plane angle", "deg")}
-        ${groups.Load[4]}
+        ${laid || one ? "" : field("oop", "φ", "Out of plane angle", "deg")}
+        ${laid ? groups.Load[4] : ""}
         </div>
         <h2>Shackle and rope</h2><div class="fgrid">
         <label class="row${mark === "shackle" ? " on" : ""}" data-mark="shackle"><span class="sym">—</span><span>Shackle</span><select data-key="shackle">${shOpts}</select><span></span></label>
@@ -660,7 +704,7 @@
           forces += arrow(X(0), Y(h), X(vEnd[0]), Y(h + vEnd[1]), "#1f5c3a", `V ${fmt(V, 3)} kip`);
         }
         if (Number.isFinite(Fop) && Math.abs(Fop) > 1e-6) {
-          forces += lbl(`Fop ${fmt(Fop, 3)} kip (out of page)`, 8, 17, { x: 8, y: 17, fixed: true, fill: "#5f584c", bold: false });
+          forces += lbl(`Fop ${fmt(Fop, 3)} kip (out of page, incl. 2.5° tol.)`, 8, 17, { x: 8, y: 17, fixed: true, fill: "#5f584c", bold: false });
         }
       }
       // R is drawn up and to the left so it does not lie under the N arrow. Dh gets a leader at the lower right.
@@ -881,11 +925,12 @@
     function paintViews() { highlight(); front(); side(); postSketch(); bow(); tables(); }
 
     function commit() {
-      score = PadEye.score(inputs);
+      score = doScore(inputs);
       paintViews();
     }
 
     document.getElementById("form").addEventListener("click", (event) => {
+      if (event.target.id === "copyDesign") { copyDesigned(); return; }
       const row = event.target.closest("[data-mark]");
       if (!row) return;
       mark = row.dataset.mark;
@@ -913,7 +958,8 @@
       if (!key) return;
       inputs[key] = event.target.value;
       mark = key;
-      if (key === "orient") drawForm();
+      if (key === "n" && inputs.n === "1" && inputs.orient === "laid") inputs.orient = "vertical";
+      if (key === "orient" || key === "n") drawForm();
       commit();
     });
     document.getElementById("print").onclick = () => window.print();

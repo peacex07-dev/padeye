@@ -51,7 +51,6 @@
     #ucR, #ucL { display: none !important; } #ucR { position: sticky; top: 0; z-index: 4; background: #fff; padding-bottom: 4px; border-bottom: 2px solid #ccc; }
     @media (min-width: 1320px) { #ucR { display: block; } #ucL { display: none; } }
     #chips { display: none !important; }
-    @media (max-width: 860px) { #eqs table, #eqs .tscroll table { table-layout: fixed; width: 100%; min-width: 0; } #eqs th, #eqs td { white-space: normal; overflow-wrap: anywhere; font-size: 11px; padding: 2px 3px; } }
     td.ucbad { color: #a1261b; font-weight: bold; }
     .chip { font-size: 11px; padding: 2px 6px; border-radius: 4px; background: #e3f0dc; color: #1f5f1f; white-space: nowrap; }
     .chip.bad { background: #f7d9d6; color: #a1261b; font-weight: bold; }
@@ -797,7 +796,7 @@
           score = null;
           if (designed.attempt) { try { inputs = designInputs(Object.assign({}, designed, { d: designed.attempt })); score = doScore(inputs); } catch (e) { score = null; } }
           document.getElementById("eqs").style.display = "";
-          if (score && !score.block) tables(); else { document.getElementById("checks").innerHTML = `<tr><th>Check</th><th>Result</th><th>Limit</th><th>UC</th><th>Status</th></tr><tr class="bad"><td>No plate to check</td><td></td><td></td><td></td><td>Fail</td></tr>`; document.getElementById("fits").innerHTML = ""; }
+          if (score && !score.block) tables(); else { document.getElementById("checks").innerHTML = `<tr><th>Check</th><th>Result</th><th>Limit</th><th>Util</th><th>Status</th></tr><tr class="bad"><td>No plate to check</td><td></td><td></td><td></td><td>Fail</td></tr>`; document.getElementById("fits").innerHTML = ""; }
           document.getElementById("stats").innerHTML = `<div class="stat big bad"><b class="fail">FAIL</b><span>No design: ${esc(String(designed.error || "no shackle or plate fits these inputs"))}</span></div>` + (score && !score.block ? `<div class="stat${score.governingU > 1 ? " bad" : ""}"><b>${fmt(score.governingU, 3)}</b><span>${score.governing || ""}</span></div><div class="stat"><b>${fmt(score.rsl, 3)}</b><span>Design load RSL, lb</span></div>` : ""); document.getElementById("chips").innerHTML = ""; paintGov(); }
         paintStatus();
       } else {
@@ -1248,12 +1247,10 @@
     function tables() {
       const checks = document.getElementById("checks");
       const fits = document.getElementById("fits");
-      checks.innerHTML = `<tr><th>Check</th><th>Result</th><th>Limit</th><th>UC</th><th>Status</th></tr>` +
-        (score.rows || []).map(row => `<tr class="${row.ok ? "" : "bad"}"><td>${row.name}</td><td class="num">${fmt(row.value, 3)}</td><td class="num">${fmt(row.limit, 3)}</td><td class="num${row.util > 1 ? " ucbad" : ""}">${fmt(row.util, 3)}</td><td>${row.ok ? "Pass" : "Fail"}</td></tr>`).join("");
-      const ucm = {}; ucRows().forEach((r) => { ucm[r.name] = r.uc; });
-      const ucs = (x) => x === null || x === undefined ? "" : Number.isFinite(x) ? x.toFixed(3) : "∞";
-      fits.innerHTML = `<tr><th>Fit</th><th>Values</th><th>UC</th><th>Status</th></tr>` +
-        (score.fits || []).map(row => { const u = ucm[chipName(row.name)]; return `<tr class="${row.ok ? "" : "bad"}"><td>${row.name}</td><td>${row.text}</td><td class="num${u > 1 ? " ucbad" : ""}">${ucs(u)}</td><td>${row.ok ? "Pass" : "Fail"}</td></tr>`; }).join("");
+      checks.innerHTML = `<tr><th>Check</th><th>Result</th><th>Limit</th><th>Util</th><th>Status</th></tr>` +
+        (score.rows || []).map(row => `<tr class="${row.ok ? "" : "bad"}"><td>${row.name}</td><td class="num">${fmt(row.value, 3)}</td><td class="num">${fmt(row.limit, 3)}</td><td class="num">${fmt(row.util, 3)}</td><td>${row.ok ? "Pass" : "Fail"}</td></tr>`).join("");
+      fits.innerHTML = `<tr><th>Fit</th><th>Values</th><th>Status</th></tr>` +
+        (score.fits || []).map(row => `<tr class="${row.ok ? "" : "bad"}"><td>${row.name}</td><td>${row.text}</td><td>${row.ok ? "Pass" : "Fail"}</td></tr>`).join("");
       const pass = score.pass === true;
       document.getElementById("stats").innerHTML = score.block
         ? `<div class="stat big bad"><b class="fail">FAIL</b><span>Not scored: ${score.block}</span></div>`
@@ -1305,7 +1302,7 @@
       rows.forEach((r, i) => { if (r.uc !== null && Number.isFinite(r.uc) ? r.uc > gv : (r.uc === Infinity && gv < Infinity)) { gv = r.uc; gi = i; } });
       const u = (x) => x === null ? "" : Number.isFinite(x) ? x.toFixed(3) : "∞";
       const html = rows.length ? `<h2>Checks</h2><table><colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4"><col class="c5"></colgroup>
-        <tr><th>Check</th><th>Result</th><th>Limit</th><th>UC</th><th>Status</th></tr>` +
+        <tr><th>Check</th><th>Result</th><th>Limit</th><th>Util</th><th>Status</th></tr>` +
         rows.map((r, i) => `<tr class="${i === gi ? "gov" : ""}"><td title="${esc(r.name)}">${esc(r.name)}</td><td title="${esc(String(r.res))}">${esc(String(r.res))}</td><td title="${esc(String(r.lim))}">${esc(String(r.lim))}</td><td class="${r.uc > 1 ? "r" : ""}">${u(r.uc)}</td><td class="${r.ok ? "g" : "r"}">${r.ok ? "PASS" : "FAIL"}</td></tr>`).join("") + "</table>" : "";
       document.getElementById("ucL").innerHTML = html; document.getElementById("ucR").innerHTML = html;
       return gi >= 0 ? rows[gi] : null;

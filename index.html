@@ -251,7 +251,7 @@
     #form .read > b:nth-child(3) { grid-area: inp; }
     #form label.row > input { width: 100%; }
     #form label.row > select { width: 100%; text-overflow: ellipsis; }
-    #form .fgrid > label.row[data-mark="stage"] { grid-template-areas: "sym lab inp inp inp inp st"; }
+    #form .fgrid > label.row[data-mark="stage"] { grid-template-areas: "sym lab req rec inp inp st"; }
     #form .fgrid > label.row[data-mark="stage"] > .rec, #form .fgrid > label.row[data-mark="stage"] > .req, #form .read[data-mark="ml"] > .rec { display: none; }
     #form .read[data-mark="ml"] { grid-template-areas: "sym lab req inp inp unit st"; }
     #form .fgrid > label.row[data-mark="shackle"], #form .fgrid > label.row[data-mark="rope"] { grid-template-areas: "sym lab req rec inp inp st"; }
@@ -530,7 +530,7 @@
     function dselect(id, symbol, label, options, current) {
       const on = mark === id ? " on" : "";
       const opts = options.map(([v, text]) => `<option value="${esc(v)}"${v === current ? " selected" : ""}>${esc(text)}</option>`).join("");
-      return `<label class="row${on}" data-mark="${id}"><span class="sym">${symbol}</span><span>${label}</span><select data-dkey="${id}">${opts}</select><span></span><span class="rec" data-rec="${id}"></span></label>`;
+      return `<label class="row${on}" data-mark="${id}"><span class="sym">${symbol}</span><span>${label}</span><select data-dkey="${id}" title="${esc((options.find(([v]) => v === current) || ["", ""])[1])}">${opts}</select><span></span><span class="rec" data-rec="${id}"></span></label>`;
     }
     function drawDesignForm() {
       dz.single = "0";   // the stage always decides the full set

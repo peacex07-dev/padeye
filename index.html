@@ -228,7 +228,7 @@
     };
     let mode = "design";
     let checkInputs = null;
-    let dz = { stage: "1", single: "0", mgw: "50000", theta: "45", k: "1", re: "50", oop: "0", tilt: "", shackle: "auto", rope: "auto", tol: "0", fore: "0" };
+    let dz = { stage: "1", single: "0", mgw: "50000", theta: "45", k: "1", re: "50", oop: "0", tilt: "", shackle: "auto", rope: "auto", tol: "0", fore: "0", bset: "" };
     let designed = null;   // { error, ls, d }
     const dnum = (key) => Number(String(dz[key] ?? "").replace(/,/g, "").trim());
 
@@ -280,6 +280,16 @@
           : PadEye.ORIENTATIONS[{ vertical: 0, horizontal: 1, laid: 2 }[st.orient]];
         // 2. shackle and plate (04_4-4-1_PadEye.py design_pad_eye)
         out.d = PadEye.designPadEye(mgw, nPe, theta, k, re, ropeMm, tol, ori, null, null, shackle, st.orient === "laid" && !single ? tilt : null, oop);
+        // Base length override: blank = auto. Must be at least the auto minimum (b >= 2R and Eq. 4.1).
+        if (String(dz.bset ?? "").trim() !== "") {
+          const bu = dnum("bset");
+          if (!Number.isFinite(bu)) throw new Error("Base length must be a number, or leave it blank for auto.");
+          if (bu < out.d.b - 1e-9) throw new Error(`Below minimum ${fmt(out.d.b, 4)} in`);
+          const d = out.d;
+          d.result = PadEye.run(mgw, nPe, theta, k, d.shackle_type, d.shackle_size, d.t, d.R, d.Dh, bu, d.h, 0.0, 0.0, 0.0, re, ropeMm, tol, ori, 0.0, st.orient === "laid" && !single ? tilt : null, oop);
+          if (!d.result.checks.every((c) => c.ok)) throw new Error(`Below minimum ${fmt(d.b, 4)} in`);
+          d.b = bu;
+        }
         // 3. lifting set again with the shackle the plate design settled on
         out.ls = LiftingSet.design({ mgwLb: mgw, nLegs: nPe, angleHDeg: theta, k, forerunner: fore, shackle: `${out.d.shackle_type} ${out.d.shackle_size}`, ropeLabel: ropeChoice });
         out.ropeLabel = ropeLabel;
@@ -328,6 +338,7 @@
         ${dfield("theta", "θ", "Sling angle from horizontal", "deg")}
         ${dfield("k", "k", "Uneven-load factor (1 = even)", "")}
         ${dfield("re", "Re", "Plate yield strength", "ksi")}
+        ${dfield("bset", "b", "Base length (blank = auto)", "in", "auto")}
         ${dz.stage === "5" ? dfield("tilt", "", "Plate tilt from vertical (blank = auto)", "deg", "auto") : dfield("oop", "φ", "Sling angle out of plate plane", "deg")}
         </div>
         <h2>Shackle and rope</h2><div class="fgrid">

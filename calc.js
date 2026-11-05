@@ -466,7 +466,7 @@
     };
   }
 
-  function designPadEye(mgwLb, nPe, angleHDeg, kAsym, ReKsi, ropeMm, tolIn, orientation, step, DhBore, shackle, tiltDeg, outOfPlaneDeg, tFixed) {
+  function designPadEye(mgwLb, nPe, angleHDeg, kAsym, ReKsi, ropeMm, tolIn, orientation, step, DhBore, shackle, tiltDeg, outOfPlaneDeg, tFixed, ignoreWll) {
     if (step === undefined || step === null) step = DESIGN_STEP_IN;
     if (tiltDeg === undefined) tiltDeg = null;
     if (outOfPlaneDeg === undefined) outOfPlaneDeg = 0.0;
@@ -479,7 +479,7 @@
       const typ = shackle.slice(0, space);
       const size = shackle.slice(space + 1);
       const wll = SHACKLES[typ][size].wll;
-      if (wll < req) {
+      if (wll < req && !ignoreWll) {
         throw new Error(
           `Chosen shackle ${shackle} WLL ${pyComma0(wll * LB_PER_T)} lb is below the required ${pyComma0(req * LB_PER_T)} lb (DNV [8.3.2]) - choose a larger size or Auto.`
         );

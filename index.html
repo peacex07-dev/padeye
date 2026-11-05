@@ -48,6 +48,7 @@
     .uc tr.gov td { font-weight: bold; background: #fff6cc; }
     .uc td.r { color: #a1261b; font-weight: bold; } .uc td.g { color: #1f5f1f; }
     .uc h2 { margin: 0 0 2px; }
+    #form .fgrid > label.row[data-mark="shackle"] { grid-template-areas: "sym lab req rec inp inp st"; }
     #ucR, #ucL { display: none !important; } #ucR { position: sticky; top: 0; z-index: 4; background: #fff; padding-bottom: 4px; border-bottom: 2px solid #ccc; }
     @media (min-width: 1320px) { #ucR { display: block; } #ucL { display: none; } }
     #chips { display: none !important; }
@@ -459,7 +460,7 @@
     function attemptPlate(c) {
       const PE = PadEye;
       let typ, size, auto = null;
-      const tryD = (sh, tf) => { try { return PE.designPadEye(c.mgw, c.nPe, c.theta, c.k, c.re, c.ropeMm, c.tol, c.ori, null, null, sh, c.tilt, c.oop, tf); } catch (e) { return null; } };
+      const tryD = (sh, tf) => { try { return PE.designPadEye(c.mgw, c.nPe, c.theta, c.k, c.re, c.ropeMm, c.tol, c.ori, null, null, sh, c.tilt, c.oop, tf, true); } catch (e) { return null; } };
       if (c.shackle && c.shackle !== PE.SHACKLE_AUTO) { const sp = c.shackle.indexOf(" "); typ = c.shackle.slice(0, sp); size = c.shackle.slice(sp + 1); auto = tryD(c.shackle, null); }
       else { auto = tryD(PE.SHACKLE_AUTO, null); if (auto) { typ = auto.shackle_type; size = auto.shackle_size; } else { const cand = PE.autoShackle(c.mgw, c.nPe, c.theta, c.k)[0]; if (!cand || !cand.length) return null; [typ, size] = cand[0]; } }
       const sh = PE.SHACKLES[typ][size];
@@ -471,7 +472,8 @@
       const P = PE.designLoad(c.mgw, c.nPe, c.theta, c.k)[0] / 1000.0, step = PE.DESIGN_STEP_IN;
       const Rr = PE.ceilStep(3 * P / (2 * c.re * t) + Dh / 2, step);
       const b = c.bFix || PE.ceilStep(2 * Rr, step);
-      const d = { shackle_type: typ, shackle_size: size, t, R: Rr, Dh, b, h: Rr, hole };
+      const d = auto && !c.tFix && !c.bFix ? { shackle_type: typ, shackle_size: size, t: auto.t, R: auto.R, Dh: auto.Dh, b: auto.b, h: auto.h, hole: auto.hole }
+        : { shackle_type: typ, shackle_size: size, t, R: Rr, Dh, b, h: Rr, hole };
       if (dz.cheek === "1") { const tc = dnum("tc"), Rc = dnum("Rc"), w = dnum("w"); if ([tc, Rc, w].every((v) => Number.isFinite(v) && v > 0)) { d.tc = tc; d.Rc = Rc; d.w = w; } }
       return d;
     }
@@ -552,6 +554,7 @@
         if (!(err instanceof Error)) throw err;
         out.error = lbMsg(err.message, dnum("mgw"));
         if (out.ctx) { try { out.attempt = attemptPlate(out.ctx) || out.attempt || null; } catch (e) { /* keep any earlier attempt */ } }
+        if (out.attempt && out.in) { try { out.ls = LiftingSet.design({ mgwLb: out.in.mgw, nLegs: out.nPe, angleHDeg: out.ctx.theta, k: out.in.k, forerunner: dz.fore === "1", shackle: `${out.attempt.shackle_type} ${out.attempt.shackle_size}`, ropeLabel: dz.rope === "auto" ? null : dz.rope }); } catch (e) { /* keep first lifting set */ } }
         out.d = null;
       }
       return out;
@@ -639,9 +642,8 @@
       }
       if (!ok && o && o.error && /Plate thickness/.test(o.error)) st.tset = "FAIL";
       const fit = (n) => { const f = score && score.fits ? score.fits.find((x) => x.name.startsWith(n)) : null; return f ? P(f.ok) : ""; };
+      if (score && score.shackle) { val.jawA = fmt(score.shackle.A, 3); val.pinB = fmt(score.shackle.B, 3); }
       if (ok && score) {
-        const sh = score.shackle;
-        if (sh) { val.jawA = fmt(sh.A, 3); val.pinB = fmt(sh.B, 3); }
         if (ls && ls.shackle) st.shackle = P(ls.shackle.utilisation <= 1);
         st.tol = fit("Thimble fits shackle bow");
         const a = fit("Thickness fits shackle jaw"), b = fit("Thickness >= 75");
@@ -671,10 +673,42 @@
     }
 
     // Recommended column: rerun the same design with only that row's override set back to auto. Display only.
+    // Recommended = the design with this row and the plate overrides back to auto, so it never depends on them.
+    // Shackle list: each option gets the result of the same design and checks as if it were picked.
+    function shackleResult(name) {
+      const keep = dz.shackle; dz.shackle = name;
+      try {
+        const o = runDesign(), d = o.d || o.attempt;
+        if (!d) return null;
+        const sc = doScore(designInputs(Object.assign({}, o, { d })));
+        if (!sc || sc.block) return null;
+        const us = (sc.rows || []).map((r) => r.util);
+        if (o.ls && o.ls.shackle) us.push(o.ls.shackle.utilisation);
+        if (o.ls && o.ls.leg) us.push(o.ls.leg.util);
+        if (o.ls && o.ls.master_link) us.push(o.ls.master_link.util);
+        const ok = !!o.d && sc.pass === true && us.every((u) => u <= 1) && (sc.fits || []).every((f) => f.ok);
+        return { ok, u: Math.max(...us) };
+      } catch (e) { return null; } finally { dz.shackle = keep; }
+    }
+    function paintShackleLabels() {
+      const sel = document.querySelector('select[data-dkey="shackle"]');
+      if (!sel) return;
+      [...sel.options].forEach((op) => {
+        if (op.value === "auto") return;
+        if (!op.dataset.base) op.dataset.base = op.textContent;
+        const r = shackleResult(op.value);
+        op.textContent = r ? `${op.dataset.base}  ${r.ok ? "PASS" : "FAIL"} ${fmt(r.u, 2)}` : `${op.dataset.base}  FAIL`;
+        op.style.color = r && r.ok ? "#1f5f1f" : "#a1261b";
+      });
+      const cur = sel.options[sel.selectedIndex]; if (cur) sel.title = cur.textContent;
+    }
     function recWith(key, autoVal, pick) {
-      const keep = dz[key];
-      dz[key] = autoVal;
-      try { const o = runDesign(); return o.d ? pick(o) : ""; } catch (e) { return ""; } finally { dz[key] = keep; }
+      const free = { shackle: "auto", tset: "", bset: "", cheek: "0" }, set = Object.assign({ [key]: autoVal }, free);
+      const one = (st) => { const keep = {}; Object.keys(st).forEach((k) => { keep[k] = dz[k]; dz[k] = st[k]; });
+        try { const o = runDesign(); return o.d ? pick(o) : ""; } catch (e) { return ""; } finally { Object.assign(dz, keep); } };
+      if (key === "shackle") return one(set);
+      const withSh = Object.assign({}, set); delete withSh.shackle;
+      return one(withSh);
     }
     function paintRecs() {
       const recs = {
@@ -821,6 +855,7 @@
           if (score && !score.block) tables(); else { document.getElementById("checks").innerHTML = `<tr><th>Check</th><th>Result</th><th>Limit</th><th>Util</th><th>Status</th></tr><tr class="bad"><td>No plate to check</td><td></td><td></td><td></td><td>Fail</td></tr>`; document.getElementById("fits").innerHTML = ""; }
           document.getElementById("stats").innerHTML = `<div class="stat big bad"><b class="fail">FAIL</b><span>No design: ${esc(String(designed.error || "no shackle or plate fits these inputs"))}</span></div>` + (score && !score.block ? `<div class="stat${score.governingU > 1 ? " bad" : ""}"><b>${fmt(score.governingU, 3)}</b><span>${score.governing || ""}</span></div><div class="stat"><b>${fmt(score.rsl, 3)}</b><span>Design load RSL, lb</span></div>` : ""); document.getElementById("chips").innerHTML = ""; paintGov(); }
         paintStatus();
+        paintShackleLabels();
       } else {
         document.getElementById("views").style.display = "";
         document.getElementById("eqs").style.display = "";
@@ -1270,7 +1305,7 @@
       const checks = document.getElementById("checks");
       const fits = document.getElementById("fits");
       checks.innerHTML = `<tr><th>Check</th><th>Result</th><th>Limit</th><th>Util</th><th>Status</th></tr>` +
-        (score.rows || []).map(row => `<tr class="${row.ok ? "" : "bad"}"><td>${row.name}</td><td class="num">${fmt(row.value, 3)}</td><td class="num">${fmt(row.limit, 3)}</td><td class="num">${fmt(row.util, 3)}</td><td>${row.ok ? "Pass" : "Fail"}</td></tr>`).join("");
+        (score.rows || []).concat(mode === "design" && designed && designed.ls && designed.ls.shackle ? [{ name: "Shackle WLL, WLLs vs SWL (t)", value: designed.ls.wll_req_t, limit: designed.ls.shackle.wll_dnv, util: designed.ls.shackle.utilisation, ok: designed.ls.shackle.utilisation <= 1 }] : []).map(row => `<tr class="${row.ok ? "" : "bad"}"><td>${row.name}</td><td class="num">${fmt(row.value, 3)}</td><td class="num">${fmt(row.limit, 3)}</td><td class="num">${fmt(row.util, 3)}</td><td>${row.ok ? "Pass" : "Fail"}</td></tr>`).join("");
       fits.innerHTML = `<tr><th>Fit</th><th>Values</th><th>Status</th></tr>` +
         (score.fits || []).map(row => `<tr class="${row.ok ? "" : "bad"}"><td>${row.name}</td><td>${row.text}</td><td>${row.ok ? "Pass" : "Fail"}</td></tr>`).join("");
       const pass = score.pass === true;

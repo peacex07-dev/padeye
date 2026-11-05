@@ -192,6 +192,31 @@
       main > div:has(> #views) { padding-top: 0; }
       #views .drawings { margin-top: 0; }
     }
+
+    /* ---------- One aligned input column + Recommended column ---------- */
+    #form label.row, #form label.row:has(> .sym:empty), #form label.row:has(> select), #form .read, #form .colhead {
+      grid-template-columns: 34px minmax(0, 1fr) 140px 330px 36px; grid-template-areas: "sym lab rec inp unit"; column-gap: 6px; }
+    #form label.row > input, #form label.row > select { grid-area: inp; width: 100%; font-size: 12px; }
+    #form label.row > :nth-child(4) { grid-area: unit; }
+    #form .read > b { grid-area: inp; }
+    #form .rec { grid-area: rec; font-weight: 700; color: var(--ok); font-size: 12px; text-align: right; padding: 3px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #form .rec:not(:empty) { background: var(--result); }
+    #form .colhead { display: grid; padding: 0 0 0 14px; margin: 6px 0 -10px; font-weight: 700; font-size: 11px; }
+    #form .colhead > :nth-child(3) { grid-area: rec; text-align: center; }
+    #form .colhead > :nth-child(4) { grid-area: inp; text-align: center; }
+    #form .colhead > :nth-child(5) { grid-area: unit; }
+    #form .colhead > :nth-child(1) { grid-area: sym; } #form .colhead > :nth-child(2) { grid-area: lab; }
+    @media (min-width: 1100px) { main { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); } }
+    @media (max-width: 1099px) {
+      #form label.row, #form label.row:has(> .sym:empty), #form label.row:has(> select), #form .read, #form .colhead { grid-template-columns: 30px minmax(0, 1fr) 140px 330px 34px; }
+    }
+    @media (max-width: 700px) {
+      #form label.row, #form label.row:has(> .sym:empty), #form label.row:has(> select), #form .read {
+        grid-template-columns: 30px minmax(0, 1fr) 34px; grid-template-areas: "sym lab lab" ". rec rec" "inp inp unit"; row-gap: 2px; }
+      #form .rec:empty { display: none; }
+      #form .rec:not(:empty)::before { content: "Recommended "; font-weight: 400; }
+      #form .colhead { display: none; }
+    }
   </style>
 </head>
 <body>
@@ -427,12 +452,12 @@
 
     function dfield(id, symbol, label, unit, ph) {
       const on = mark === id ? " on" : "";
-      return `<label class="row${on}" data-mark="${id}"><span class="sym">${symbol}</span><span>${label}</span><input data-dkey="${id}" value="${esc(dz[id] ?? "")}"${ph ? ` placeholder="${ph}"` : ""}><span class="unit">${unit}</span></label>`;
+      return `<label class="row${on}" data-mark="${id}"><span class="sym">${symbol}</span><span>${label}</span><input data-dkey="${id}" value="${esc(dz[id] ?? "")}"${ph ? ` placeholder="${ph}"` : ""}><span class="unit">${unit}</span><span class="rec" data-rec="${id}"></span></label>`;
     }
     function dselect(id, symbol, label, options, current) {
       const on = mark === id ? " on" : "";
       const opts = options.map(([v, text]) => `<option value="${esc(v)}"${v === current ? " selected" : ""}>${esc(text)}</option>`).join("");
-      return `<label class="row${on}" data-mark="${id}"><span class="sym">${symbol}</span><span>${label}</span><select data-dkey="${id}">${opts}</select><span></span></label>`;
+      return `<label class="row${on}" data-mark="${id}"><span class="sym">${symbol}</span><span>${label}</span><select data-dkey="${id}">${opts}</select><span></span><span class="rec" data-rec="${id}"></span></label>`;
     }
     function drawDesignForm() {
       dz.single = "0";   // the stage always decides the full set
@@ -441,8 +466,9 @@
       const shOpts = [["auto", "Auto-pick"]].concat(catalog.shackles.map(s => [s.value, s.value + (s.approved ? "" : " (needs certificate)")]));
       const ropeOpts = [["auto", "Auto-pick"]].concat(catalog.ropes.map(r => [r, r]));
       document.getElementById("form").innerHTML = `
+        <div class="colhead"><span></span><span></span><span>Recommended</span><span>Input</span><span>Unit</span></div>
         <h2>Shackle</h2><div class="fgrid">
-        ${dselect("stdshackle", "", "Shackle", shOpts, dz.shackle).replace('data-dkey="stdshackle"', 'data-dkey="shackle"')}
+        ${dselect("stdshackle", "", "Shackle", shOpts, dz.shackle).replace('data-dkey="stdshackle"', 'data-dkey="shackle"').replace('data-rec="stdshackle"', 'data-rec="shackle"')}
         </div>
         <h2>Lift</h2><div class="fgrid">
         ${dselect("stage", "", "Lift type", stageOpts, dz.stage)}
@@ -457,11 +483,28 @@
         ${dz.stage === "5" ? dfield("tilt", "", "Plate tilt from vertical (blank = auto)", "deg", "auto") : dfield("oop", "φ", "Sling angle out of plate plane", "deg")}
         </div>
         <h2>Rope</h2><div class="fgrid">
-        ${dselect("stdrope", "", "Wire rope size", ropeOpts, dz.rope).replace('data-dkey="stdrope"', 'data-dkey="rope"')}
+        ${dselect("stdrope", "", "Wire rope size", ropeOpts, dz.rope).replace('data-dkey="stdrope"', 'data-dkey="rope"').replace('data-rec="stdrope"', 'data-rec="rope"')}
         ${dfield("tol", "", "Extra bow-gap allowance", "in")}
         ${dselect("fore", "", "Forerunner", [["0", "None"], ["1", "Add forerunner"]], dz.fore)}
         </div>
 `;
+    }
+
+    // Recommended column: rerun the same design with only that row's override set back to auto. Display only.
+    function recWith(key, autoVal, pick) {
+      const keep = dz[key];
+      dz[key] = autoVal;
+      try { const o = runDesign(); return o.d ? pick(o) : ""; } catch (e) { return ""; } finally { dz[key] = keep; }
+    }
+    function paintRecs() {
+      const recs = {
+        shackle: recWith("shackle", "auto", (o) => `${o.d.shackle_type} ${o.d.shackle_size}`),
+        tset: recWith("tset", "", (o) => fmt(o.d.t, 3)),
+        bset: recWith("bset", "", (o) => fmt(o.d.b, 4)),
+        rope: recWith("rope", "auto", (o) => o.ropeLabel),
+      };
+      if (dz.stage === "5") recs.tilt = recWith("tilt", "", (o) => fmtDeg(90 - o.in.theta));
+      document.querySelectorAll("#form [data-rec]").forEach((el) => { el.textContent = recs[el.dataset.rec] ?? ""; });
     }
 
     function drawModebar() {
@@ -578,6 +621,7 @@
         document.getElementById("views").style.display = ok ? "" : "none";
         document.getElementById("eqs").style.display = ok ? "" : "none";
         if (redrawForm) drawDesignForm();
+        paintRecs();
         renderDesignOut();
         if (ok) { inputs = designInputs(designed); score = doScore(inputs); paintViews(); }
         else document.getElementById("stats").innerHTML = `<div class="stat"><b class="fail">No design</b><span>Change the inputs</span></div>`;

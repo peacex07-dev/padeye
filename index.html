@@ -37,6 +37,8 @@
     #form h2 { margin: 14px 0 8px; font-size: 16px; }
     .fgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(235px, 1fr)); gap: 12px 18px; align-items: end; }
     label.row, .read { display: grid; grid-template-columns: auto minmax(0, 1fr) 40px; grid-template-areas: "sym lab lab" "inp inp unit"; column-gap: 8px; row-gap: 3px; align-items: center; cursor: pointer; min-width: 0; }
+    label.row > .sym:empty { display: none; }
+    label.row:has(> .sym:empty) { grid-template-areas: "lab lab lab" "inp inp unit"; }
     label.row > .sym, .read > .sym { grid-area: sym; font-weight: 700; color: var(--blue); }
     label.row > :nth-child(2), .read > :nth-child(2) { grid-area: lab; font-size: 13.5px; line-height: 1.25; color: #2f343a; }
     label.row > input { grid-area: inp; }
@@ -143,7 +145,7 @@
     const project = params.get("project") || "";
     const calc = params.get("calc") || "dnv";
     const HELP = {
-      stage: "Stage 1: four-part, vertical plates. 2: four-part, horizontal plates. 3: two-part, vertical. 4: two-part, horizontal. 5: two-part, laid over toward the master link (the plate leans with the sling). Same five stages as 04_4-4-1_PadEye.py.",
+      stage: "4-leg or 2-leg sling. Pad eyes vertical, horizontal, or laid over (tilted with the sling).",
       single: "One pad eye with a single leg: the load is Rg (Eq. 4.6 style, 5 Rg). The set has no master link.",
       stdshackle: "Auto starts at the smallest shackle that carries the leg load and steps up until a plate design passes and the thimble fits. Pick one to force it.",
       stdrope: "Auto picks the smallest wire rope whose single-leg WLL carries the leg load (02_8-3_LiftingSet.py). Pick one to force it.",
@@ -191,12 +193,12 @@
       return String(Number(n));
     }
     const FIELDS = [
-      ["Load", "mgw", "Rg", "Rating, maximum gross weight", "lb"],
+      ["Load", "mgw", "", "Max gross weight", "lb"],
       ["Load", "theta", "θ", "Sling angle from horizontal", "deg"],
-      ["Load", "k", "k", "Asymmetry factor", "—"],
-      ["Load", "re", "Re", "Plate yield", "ksi"],
-      ["Load", "tilt", "tilt", "Laid-over tilt from vertical", "deg"],
-      ["Shackle", "tol", "tol", "Entered bow-gap tolerance", "in"],
+      ["Load", "k", "k", "Uneven-load factor (1 = even)", ""],
+      ["Load", "re", "Re", "Plate yield strength", "ksi"],
+      ["Load", "tilt", "", "Plate tilt from vertical", "deg"],
+      ["Shackle", "tol", "", "Extra bow-gap allowance", "in"],
       ["Plate", "t", "t", "Main plate thickness", "in"],
       ["Plate", "R", "R", "Main plate radius", "in"],
       ["Plate", "Dh", "Dh", "Hole diameter", "in"],
@@ -218,11 +220,11 @@
 
     /* ---------- Design mode: pick shackle, plate and lifting set from the load ---------- */
     const STAGES = {
-      1: { legs: 4, orient: "vertical", label: "Stage 1: four-part, vertical plates" },
-      2: { legs: 4, orient: "horizontal", label: "Stage 2: four-part, horizontal plates" },
-      3: { legs: 2, orient: "vertical", label: "Stage 3: two-part, vertical plates" },
-      4: { legs: 2, orient: "horizontal", label: "Stage 4: two-part, horizontal plates" },
-      5: { legs: 2, orient: "laid", label: "Stage 5: two-part, laid over toward the master link" },
+      1: { legs: 4, orient: "vertical", label: "4-leg sling, pad eyes vertical" },
+      2: { legs: 4, orient: "horizontal", label: "4-leg sling, pad eyes horizontal" },
+      3: { legs: 2, orient: "vertical", label: "2-leg sling, pad eyes vertical" },
+      4: { legs: 2, orient: "horizontal", label: "2-leg sling, pad eyes horizontal" },
+      5: { legs: 2, orient: "laid", label: "2-leg sling, pad eyes laid over (tilted)" },
     };
     let mode = "design";
     let checkInputs = null;
@@ -314,25 +316,25 @@
       return `<label class="row${on}" data-mark="${id}"><span class="sym">${symbol}</span><span>${label}</span><select data-dkey="${id}">${opts}</select><span></span></label>`;
     }
     function drawDesignForm() {
-      const single = dz.single === "1";
+      dz.single = "0";   // the stage always decides the full set
+      const single = false;
       const stageOpts = Object.entries(STAGES).map(([k, s]) => [k, s.label]);
-      const shOpts = [["auto", "Auto"]].concat(catalog.shackles.map(s => [s.value, s.value + (s.approved ? "" : " — product certificate")]));
-      const ropeOpts = [["auto", "Auto"]].concat(catalog.ropes.map(r => [r, r]));
+      const shOpts = [["auto", "Auto-pick"]].concat(catalog.shackles.map(s => [s.value, s.value + (s.approved ? "" : " (needs certificate)")]));
+      const ropeOpts = [["auto", "Auto-pick"]].concat(catalog.ropes.map(r => [r, r]));
       document.getElementById("form").innerHTML = `
         <h2>Lift</h2><div class="fgrid">
-        ${dselect("stage", "—", "Stage", stageOpts, dz.stage)}
-        ${dselect("single", "—", "Lifting set", [["0", "Full set from the stage"], ["1", "One pad eye, single leg"]], dz.single)}
-        ${dfield("mgw", "Rg", "Rating, maximum gross weight", "lb")}
-        ${single ? "" : dfield("theta", "θ", "Sling angle from horizontal", "deg")}
-        ${dfield("k", "k", "Asymmetry factor", "—")}
-        ${dfield("re", "Re", "Plate yield", "ksi")}
-        ${single ? "" : dz.stage === "5" ? dfield("tilt", "tilt", "Laid-over tilt from vertical (blank = auto)", "deg", "auto") : dfield("oop", "φ", "Out of plane angle", "deg")}
+        ${dselect("stage", "", "Lift type", stageOpts, dz.stage)}
+        ${dfield("mgw", "", "Max gross weight", "lb")}
+        ${dfield("theta", "θ", "Sling angle from horizontal", "deg")}
+        ${dfield("k", "k", "Uneven-load factor (1 = even)", "")}
+        ${dfield("re", "Re", "Plate yield strength", "ksi")}
+        ${dz.stage === "5" ? dfield("tilt", "", "Plate tilt from vertical (blank = auto)", "deg", "auto") : dfield("oop", "φ", "Sling angle out of plate plane", "deg")}
         </div>
         <h2>Shackle and rope</h2><div class="fgrid">
-        ${dselect("stdshackle", "—", "Shackle", shOpts, dz.shackle).replace('data-dkey="stdshackle"', 'data-dkey="shackle"')}
-        ${dselect("stdrope", "rope", "Wire rope", ropeOpts, dz.rope).replace('data-dkey="stdrope"', 'data-dkey="rope"')}
-        ${dfield("tol", "tol", "Entered bow-gap tolerance", "in")}
-        ${dselect("fore", "—", "Forerunner", [["0", "Not needed"], ["1", "Add a forerunner"]], dz.fore)}
+        ${dselect("stdshackle", "", "Shackle", shOpts, dz.shackle).replace('data-dkey="stdshackle"', 'data-dkey="shackle"')}
+        ${dselect("stdrope", "", "Wire rope size", ropeOpts, dz.rope).replace('data-dkey="stdrope"', 'data-dkey="rope"')}
+        ${dfield("tol", "", "Extra bow-gap allowance", "in")}
+        ${dselect("fore", "", "Forerunner", [["0", "None"], ["1", "Add forerunner"]], dz.fore)}
         </div>
 `;
     }
@@ -471,7 +473,7 @@
       const shOpts = catalog.shackles.map(s => `<option value="${esc(s.value)}"${s.value === inputs.shackle ? " selected" : ""}>${esc(s.value)}${s.approved ? "" : " — product certificate"}</option>`).join("");
       const ropes = catalog.ropes.map(s => `<option value="${esc(s)}"${s === inputs.rope ? " selected" : ""}>${esc(s)}</option>`).join("");
       const one = inputs.n === "1", laid = inputs.orient === "laid" && !one;
-      const nSel = ["1", "2", "4"].map(n => `<option value="${n}"${inputs.n === n ? " selected" : ""}>${n} pad eye${n === "1" ? "" : "s"}</option>`).join("");
+      const nSel = ["1", "2", "4"].map(n => `<option value="${n}"${inputs.n === n ? " selected" : ""}>${{ "1": "One pad eye", "2": "Two pad eyes", "4": "Four pad eyes" }[n]}</option>`).join("");
       const oSel = [["vertical", "Vertical, on top of the post"], ["horizontal", "Horizontal, inside face of the post"], ["laid", "Laid over, tilted with the sling"]]
         .filter(([v]) => !(one && v === "laid"))
         .map(([v, label]) => `<option value="${v}"${inputs.orient === v ? " selected" : ""}>${label}</option>`).join("");
@@ -480,15 +482,15 @@
         ${canCopyDesign() ? '<div class="copyrow noprint"><button type="button" id="copyDesign">Copy designed plate</button></div>' : ""}
         <h2>Load</h2><div class="fgrid">
         ${groups.Load[0]}
-        <label class="row${mark === "n" ? " on" : ""}" data-mark="n"><span class="sym">n</span><span>Number of pad eyes</span><select data-key="n">${nSel}</select><span></span></label>
+        <label class="row${mark === "n" ? " on" : ""}" data-mark="n"><span class="sym">n</span><span>Pad eyes</span><select data-key="n">${nSel}</select><span></span></label>
         ${(one ? groups.Load.slice(2, 4) : groups.Load.slice(1, 4)).join("")}
-        <label class="row${mark === "orient" ? " on" : ""}" data-mark="orient"><span class="sym">—</span><span>Where the plate sits</span><select data-key="orient">${oSel}</select><span></span></label>
+        <label class="row${mark === "orient" ? " on" : ""}" data-mark="orient"><span class="sym"></span><span>Where the plate sits</span><select data-key="orient">${oSel}</select><span></span></label>
         ${laid || one ? "" : field("oop", "φ", "Out of plane angle", "deg")}
         ${laid ? groups.Load[4] : ""}
         </div>
         <h2>Shackle and rope</h2><div class="fgrid">
-        <label class="row${mark === "shackle" ? " on" : ""}" data-mark="shackle"><span class="sym">—</span><span>Shackle</span><select data-key="shackle">${shOpts}</select><span></span></label>
-        <label class="row${mark === "rope" ? " on" : ""}" data-mark="rope"><span class="sym">rope</span><span>Wire rope</span><select data-key="rope">${ropes}</select><span></span></label>
+        <label class="row${mark === "shackle" ? " on" : ""}" data-mark="shackle"><span class="sym"></span><span>Shackle</span><select data-key="shackle">${shOpts}</select><span></span></label>
+        <label class="row${mark === "rope" ? " on" : ""}" data-mark="rope"><span class="sym"></span><span>Wire rope</span><select data-key="rope">${ropes}</select><span></span></label>
         ${groups.Shackle.join("")}
         <div class="read${mark === "A" ? " on" : ""}" data-mark="A"><span class="sym">A</span><span>Jaw width</span><b id="jawA">${fmt(sh.A, 3)} in</b></div>
         <div class="read${mark === "pin" ? " on" : ""}" data-mark="pin"><span class="sym">d</span><span>Pin diameter</span><b id="pinD">${fmt(sh.B, 3)} in</b></div>

@@ -35,8 +35,8 @@
     .note { font-size: 13px; color: var(--muted); }
     #form { margin-top: 10px; }
     #form h2 { margin: 14px 0 8px; font-size: 16px; }
-    .fgrid > * { position: relative; }
-    .grip { position: absolute; left: -15px; top: 50%; transform: translateY(-50%); cursor: grab; touch-action: none; user-select: none; color: #9aa7b4; font-size: 16px; line-height: 1; padding: 6px 2px; }
+    .fgrid > * { position: relative; padding-left: 14px; }
+    .grip { position: absolute; left: 0; top: -4px; cursor: grab; touch-action: none; user-select: none; color: #9aa7b4; font-size: 16px; line-height: 1; padding: 6px 2px; }
     .dragging { opacity: .5; outline: 2px dashed #9aa7b4; }
     .layoutbar { display: flex; gap: 8px; justify-content: flex-end; margin: 4px 0; }
     .layoutbar button { font-size: 12px; padding: 3px 8px; }
@@ -1038,7 +1038,7 @@
           if (el.querySelector(":scope > .grip")) return;
           const grip = document.createElement("span");
           grip.className = "grip noprint"; grip.textContent = "\u2807"; grip.title = "Drag";
-          el.insertBefore(grip, el.firstChild);
+          el.appendChild(grip);   // last child: keeps the nth-child layout rules intact
         });
       });
       if (!form.querySelector(".layoutbar")) {

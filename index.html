@@ -34,6 +34,15 @@
     tr.bad td:first-child { color: var(--bad); }
     .note { font-size: 13px; color: var(--muted); }
     #form { margin-top: 10px; }
+    #topbar { position: sticky; top: 0; z-index: 5; background: #fff; padding: 4px 0 6px; border-bottom: 2px solid #ccc; }
+    #topbar .stats { margin: 4px 0; gap: 8px; }
+    #topbar .stat { padding: 5px 12px; min-width: 150px; }
+    #topbar .stat.big b { font-size: 26px; }
+    #topbar .stat.bad { background: #f7d9d6; color: #a1261b; }
+    #chips { display: flex; flex-wrap: wrap; gap: 4px; }
+    @media (max-width:860px) { #topbar .stats { flex-direction: row; flex-wrap: nowrap; } #topbar .stat { min-width: 0; width: auto; flex: 1; padding: 3px 6px; font-size: 10px; } #topbar .stat b { font-size: 14px; } #topbar .stat.big b { font-size: 18px; } }
+    .chip { font-size: 11px; padding: 2px 6px; border-radius: 4px; background: #e3f0dc; color: #1f5f1f; white-space: nowrap; }
+    .chip.bad { background: #f7d9d6; color: #a1261b; font-weight: bold; }
     #form h2 { margin: 14px 0 8px; font-size: 16px; }
     .fgrid > * { position: relative; padding-left: 14px; }
     .grip { position: absolute; left: 0; top: -4px; cursor: grab; touch-action: none; user-select: none; color: #9aa7b4; font-size: 16px; line-height: 1; padding: 6px 2px; }
@@ -156,7 +165,7 @@
 
     /* ---------- Two-column: inputs left, figures right ---------- */
     main { display: flex; flex-direction: column; }
-    #modebar { order: 1; } #form { order: 2; } main > div:has(> #views) { order: 3; } #stats { order: 4; } #designOut { order: 5; } #eqs { order: 6; }
+    #modebar { order: 1; } #topbar { order: 2; } #form { order: 2; } main > div:has(> #views) { order: 3; } #stats { order: 4; } #designOut { order: 5; } #eqs { order: 6; }
     label.row[data-mark="stage"], label.row[data-mark="orient"] { grid-template-columns: 44px minmax(0, 1fr) minmax(0, 300px) 0; }
     label.row[data-mark="stage"] > select, label.row[data-mark="orient"] > select { text-overflow: ellipsis; }
     .drawings .panel svg, .drawings #side svg { max-width: 100%; }
@@ -165,7 +174,7 @@
       main { display: grid; grid-template-columns: minmax(560px, 1fr) minmax(0, 1.05fr); column-gap: 22px; align-items: start; }
       main > * { grid-column: 1; min-width: 0; }
       main > div:has(> #views) { grid-column: 2; grid-row: 1 / span 6; position: sticky; top: 0; max-height: 100vh; overflow-y: auto; }
-      #modebar { grid-row: 1; } #form { grid-row: 2; } #stats { grid-row: 3; } #designOut { grid-row: 4; } #eqs { grid-row: 5; }
+      #modebar { grid-row: 1; } #topbar { grid-row: 2; } #form { grid-row: 3; } #designOut { grid-row: 4; } #eqs { grid-row: 5; }
       .fgrid { grid-template-columns: 1fr; }
       #views .drawings { grid-template-columns: 1fr 1fr; margin-top: 14px; gap: 10px; }
       #views .panel.front { grid-column: 1 / -1; }
@@ -260,7 +269,7 @@
     #form .colhead > * { text-align: left; }
     #form h2[data-sec] { display: flex; justify-content: space-between; }
     #form .hstat { font-size: 11px; padding-right: 4px; }
-    #form, #stats, #designOut, #eqs { width: 816px; max-width: 100%; }
+    #form, #topbar, #designOut, #eqs { width: 816px; max-width: 100%; }
     .panel.shk svg { width: 100%; max-height: 230px; }
     .shksvg .dl { stroke: #333; stroke-width: 1; } .shksvg .dt { font-size: 12px; font-weight: 700; fill: #1f3864; }
     @media (min-width: 1100px) and (max-width: 1319px) {
@@ -277,7 +286,7 @@
       #views .panel.bowp svg { max-height: 110px; }
     }
     @media (max-width: 860px) {
-      #form, #stats, #designOut, #eqs { width: auto; }
+      #form, #topbar, #designOut, #eqs { width: auto; }
       #form label.row, #form label.row:has(> .sym:empty), #form label.row:has(> select), #form .read, #form label.row[data-mark] {
         grid-template-columns: 30px minmax(0, 1fr) 160px 34px; grid-template-areas: "sym lab lab st" ". req req req" ". rec rec rec" ". inp inp unit"; row-gap: 2px; }
       #form .read[data-mark="ml"], #form .fgrid > label.row[data-mark="stage"], #form .fgrid > label.row[data-mark="shackle"], #form .fgrid > label.row[data-mark="rope"] { grid-template-areas: "sym lab lab st" ". req req req" ". rec rec rec" ". inp inp unit"; }
@@ -301,8 +310,8 @@
   </header>
   <main>
     <div class="modebar noprint" id="modebar"></div>
+    <div id="topbar"><div class="stats" id="stats"></div><div id="chips"></div></div>
     <section id="form"></section>
-    <div class="stats" id="stats"></div>
     <div id="designOut"></div>
     <div>
       <section id="views">
@@ -588,6 +597,7 @@
         if (ls.master_link) { val.ml = `A-1346 stock ${ls.master_link.stock}`; st.ml = P(ls.master_link.util <= 1 && ls.master_link.inside_ok); } else val.ml = "None";
         if (ls.forerunner) st.fore = P(ls.forerunner.util <= 1);
       }
+      if (!ok && o && o.error && /Plate thickness/.test(o.error)) st.tset = "FAIL";
       const fit = (n) => { const f = score && score.fits ? score.fits.find((x) => x.name.startsWith(n)) : null; return f ? P(f.ok) : ""; };
       if (ok && score) {
         const sh = score.shackle;
@@ -597,6 +607,10 @@
         const a = fit("Thickness fits shackle jaw"), b = fit("Thickness >= 75");
         if (a && b) st.tset = P(a === "PASS" && b === "PASS");
         if (dz.cheek === "1") { st.tc = a; st.Rc = fit("Cheek radius"); }
+        const chk = (n) => { const r = (score.rows || []).find((x) => x.name.startsWith(n)); return r ? P(r.ok) : ""; };
+        st.bset = chk("Base"); if (dz.cheek === "1") st.w = chk("Eq. 4.15");
+        st.re = P(["Eq. 4.13", "Eq. 4.14", "Base"].every((n) => chk(n) !== "FAIL"));
+        if (dz.stage === "5") st.tilt = fit("Sling in line");
       }
       const f = document.getElementById("form");
       f.querySelectorAll("[data-val]").forEach((e) => { e.textContent = val[e.dataset.val] ?? ""; });
@@ -760,7 +774,7 @@
         paintRecs();
         renderDesignOut();
         if (ok) { inputs = designInputs(designed); score = doScore(inputs); paintViews(); }
-        else document.getElementById("stats").innerHTML = `<div class="stat"><b class="fail">No design</b><span>Change the inputs</span></div>`;
+        else { document.getElementById("stats").innerHTML = `<div class="stat big bad"><b class="fail">FAIL</b><span>No design: ${esc(String(designed.error || designed.reason || "no shackle or plate fits these inputs"))}</span></div>`; document.getElementById("chips").innerHTML = ""; }
         paintStatus();
       } else {
         document.getElementById("views").style.display = "";
@@ -1216,10 +1230,23 @@
         (score.fits || []).map(row => `<tr class="${row.ok ? "" : "bad"}"><td>${row.name}</td><td>${row.text}</td><td>${row.ok ? "Pass" : "Fail"}</td></tr>`).join("");
       const pass = score.pass === true;
       document.getElementById("stats").innerHTML = score.block
-        ? `<div class="stat"><b class="fail">Not scored</b><span>${score.block}</span></div>`
-        : `<div class="stat"><b class="${pass ? "pass" : "fail"}">${pass ? "Pass" : "Fail"}</b><span>Plate and fits</span></div>
-           <div class="stat"><b>${fmt(score.governingU, 3)}</b><span>${score.governing || ""}</span></div>
+        ? `<div class="stat big bad"><b class="fail">FAIL</b><span>Not scored: ${score.block}</span></div>`
+        : `<div class="stat big${pass ? "" : " bad"}"><b class="${pass ? "pass" : "fail"}">${pass ? "PASS" : "FAIL"}</b><span>Plate and fits</span></div>
+           <div class="stat${score.governingU > 1 ? " bad" : ""}"><b>${fmt(score.governingU, 3)}</b><span>${score.governing || ""}</span></div>
            <div class="stat"><b>${fmt(score.rsl, 3)}</b><span>Design load RSL, lb</span></div>`;
+      paintChips();
+    }
+
+    const CHIPN = [["Eq. 4.13", "Eq 4.13 Tear-out"], ["Eq. 4.14", "Eq 4.14 Contact"], ["Eq. 4.15", "Eq 4.15 Cheek weld"], ["Base", "Base"],
+      ["Hole clears", "Hole clears pin"], ["Hole clearance", "Hole clearance"], ["Thickness fits", "Jaw fit t+2tc<=A"], ["Thickness >=", "t>=0.75A"],
+      ["Thimble", "Thimble"], ["Bow gap", "Bow gap"], ["R within", "R range"], ["Cheek radius", "Rc<=R"], ["Sling in line", "Sling in line"]];
+    const chipName = (n) => (CHIPN.find(([p]) => n.startsWith(p)) || [0, n])[1];
+    function paintChips() {
+      const h = document.getElementById("chips");
+      if (!score || score.block) { h.innerHTML = ""; return; }
+      const c = (n, v, ok) => `<span class="chip${ok ? "" : " bad"}" title="${esc(n)}">${esc(chipName(n))} ${v} ${ok ? "PASS" : "FAIL"}</span>`;
+      h.innerHTML = (score.rows || []).map((r) => c(r.name, fmt(r.util, 3), r.ok)).join("") +
+        (score.fits || []).map((f) => c(f.name, "", f.ok)).join("");
     }
 
     function highlight() {

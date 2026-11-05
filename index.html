@@ -567,6 +567,9 @@
       return {
         mgw: String(i.mgw), n: String(out.nPe), theta: String(single ? 90 : i.theta), k: String(i.k), re: String(i.re),
         orient,
+        stage: dz.stage,
+        fore: dz.fore || "0",
+        cheek: d.tc ? "1" : "0",
         // blank tilt means "auto": the laid-over plate follows the sling leg exactly (delta = 0), same as tilt None in Python
         tilt: orient === "laid" && !single ? String(i.tilt === null ? 90 - i.theta : i.tilt) : "",
         oop: String(dz.stage === "5" ? 0 : i.oop), rope: out.ropeLabel, tol: String(i.tol),
@@ -810,8 +813,12 @@
       return Object.assign(b, {
         mgw: String(dz.mgw), n: String(single ? 1 : st.legs), theta: th, k: String(dz.k), re: String(dz.re), tol: String(dz.tol),
         orient: single ? (st.orient === "horizontal" ? "horizontal" : "vertical") : st.orient,
+        stage: dz.stage, fore: dz.fore || "0", cheek: dz.cheek || "0",
         tilt: st.orient === "laid" && !single ? (String(dz.tilt).trim() !== "" ? String(dz.tilt) : tiltAuto) : "",
         oop: dz.stage === "5" ? "0" : String(dz.oop),
+        tc: dz.cheek === "1" ? String(dz.tc || 0) : "0",
+        Rc: dz.cheek === "1" ? String(dz.Rc || 0) : "0",
+        w: dz.cheek === "1" ? String(dz.w || 0) : "0",
       });
     }
     function canCopyDesign() { try { return !!runDesign().d; } catch (e) { return false; } }
@@ -829,6 +836,8 @@
         // first visit only: start from the designed plate. After that keep the user's own edits.
         if (!checkSeeded) { checkInputs = seedCheck(); checkSeeded = true; }
         inputs = Object.assign({}, checkInputs);
+        syncStageFields(inputs);
+        if (inputs.cheek !== "1") inputs.cheek = Number(inputs.tc) > 0 ? "1" : "0";
         mode = "check";
       } else {
         checkInputs = Object.assign({}, inputs);
@@ -859,47 +868,230 @@
       } else {
         document.getElementById("views").style.display = "";
         document.getElementById("eqs").style.display = "";
-        designed = null;
+        // keep designed for Recommended + Copy; do not clear
         renderDesignOut();
-        score = doScore(inputs);
+        syncStageFields(inputs);
+        const resolved = resolvedCheck(inputs);
+        checkLs = resolved.ls;
+        score = doScore(resolved.inp);
+        // Never stop: even when blocked, still show FAIL squares and empty/Fail tables
         if (redrawForm) drawForm();
-        paintViews();
+        if (score && !score.block) paintViews();
+        else {
+          try { if (score) tables(); else {
+            document.getElementById("checks").innerHTML = `<tr><th>Check</th><th>Result</th><th>Limit</th><th>Util</th><th>Status</th></tr><tr class="bad"><td>No plate to check</td><td></td><td></td><td></td><td>Fail</td></tr>`;
+            document.getElementById("fits").innerHTML = "";
+            document.getElementById("stats").innerHTML = `<div class="stat big bad"><b class="fail">FAIL</b><span>Not scored</span></div>`;
+            document.getElementById("chips").innerHTML = ""; paintGov();
+          } } catch (e) { /* keep prior */ }
+        }
+        paintCheckRecs();
+        paintCheckStatus();
+        paintCheckShackleLabels();
       }
     }
 
+    /* ---------- Check Existing: same spreadsheet form as Design, with R/Dh/h/C kept ---------- */
+    function stageFromNO(n, orient) {
+      const nn = String(n), o = orient || "vertical";
+      if (nn === "4" && o === "horizontal") return "2";
+      if (nn === "4") return "1";
+      if (nn === "2" && o === "horizontal") return "4";
+      if (nn === "2" && o === "laid") return "5";
+      if (nn === "2") return "3";
+      return o === "horizontal" ? "2" : "1";
+    }
+    function syncStageFields(inp) {
+      if (!inp.stage || !STAGES[inp.stage]) inp.stage = stageFromNO(inp.n, inp.orient);
+      const st = STAGES[inp.stage];
+      inp.n = String(st.legs);
+      inp.orient = st.orient;
+      if (inp.fore !== "1") inp.fore = "0";
+      if (inp.cheek !== "1") inp.cheek = "0";
+      return inp;
+    }
+    function checkLiftingSet(inp) {
+      const mgw = Number(String(inp.mgw).replace(/,/g, ""));
+      const n = Number(inp.n);
+      const theta = Number(inp.theta);
+      const k = Number(inp.k);
+      if (![mgw, n, theta, k].every(Number.isFinite)) return null;
+      const ropeChoice = !inp.rope || inp.rope === "auto" ? null : inp.rope;
+      const shOpt = (!inp.shackle || inp.shackle === "auto") ? undefined : inp.shackle;
+      try {
+        return LiftingSet.design({ mgwLb: mgw, nLegs: n, angleHDeg: theta, k, forerunner: inp.fore === "1", shackle: shOpt, ropeLabel: ropeChoice });
+      } catch (e) { return null; }
+    }
+    // Resolve Auto rope/shackle and cheek-off zeros for scoring; never throws.
+    function resolvedCheck(raw) {
+      const inp = syncStageFields(Object.assign({}, raw));
+      if (inp.cheek !== "1") { inp.tc = "0"; inp.Rc = "0"; inp.w = "0"; }
+      let ls = checkLiftingSet(inp);
+      if (inp.rope === "auto" && ls && ls.leg) inp.rope = ls.leg.size;
+      if (inp.shackle === "auto") {
+        if (ls && ls.shackle) inp.shackle = `${ls.shackle.type} ${ls.shackle.size}`;
+        else {
+          try {
+            const d = runDesign();
+            if (d && d.d) inp.shackle = `${d.d.shackle_type} ${d.d.shackle_size}`;
+          } catch (e) { /* leave auto; score will block */ }
+        }
+      }
+      // refresh ls with resolved shackle/rope so WLL matches what is scored
+      ls = checkLiftingSet(inp) || ls;
+      return { inp, ls };
+    }
+    let checkLs = null;
+    function cfield(id, symbol, label, unit, ph) {
+      const on = mark === id ? " on" : "";
+      return `<label class="row${on}" data-mark="${id}"><span class="sym">${symbol}</span><span>${label}</span><input data-key="${id}" value="${esc(inputs[id] ?? "")}"${ph ? ` placeholder="${ph}"` : ""}><span class="unit">${unit}</span><span class="rec" data-rec="${id}"></span></label>`;
+    }
+    function cselect(id, symbol, label, options, current) {
+      const on = mark === id ? " on" : "";
+      const opts = options.map(([v, text]) => `<option value="${esc(v)}"${v === current ? " selected" : ""}>${esc(text)}</option>`).join("");
+      return `<label class="row${on}" data-mark="${id}"><span class="sym">${symbol}</span><span>${label}</span><select data-key="${id}" title="${esc((options.find(([v]) => v === current) || ["", ""])[1])}">${opts}</select><span></span><span class="rec" data-rec="${id}"></span></label>`;
+    }
+    function cread(id, symbol, label, unit) {
+      return `<div class="read${mark === id ? " on" : ""}" data-mark="${id}"><span class="sym">${symbol}</span><span>${label}</span><span class="unit">${unit}</span><b data-val="${id}"></b><span class="rec" data-rec="${id}"></span></div>`;
+    }
     function drawForm() {
-      const groups = {};
-      for (const [group, id, symbol, label, unit] of FIELDS) (groups[group] ||= []).push(field(id, symbol, label, unit));
-      const shOpts = catalog.shackles.map(s => `<option value="${esc(s.value)}"${s.value === inputs.shackle ? " selected" : ""}>${esc(s.value)}${s.approved ? "" : " — product certificate"}</option>`).join("");
-      const ropes = catalog.ropes.map(s => `<option value="${esc(s)}"${s === inputs.rope ? " selected" : ""}>${esc(s)}</option>`).join("");
-      const one = inputs.n === "1", laid = inputs.orient === "laid" && !one;
-      const nSel = ["1", "2", "4"].map(n => `<option value="${n}"${inputs.n === n ? " selected" : ""}>${{ "1": "One pad eye", "2": "Two pad eyes", "4": "Four pad eyes" }[n]}</option>`).join("");
-      const oSel = [["vertical", "Vertical, on top of the post"], ["horizontal", "Horizontal, inside face of the post"], ["laid", "Laid over, tilted with the sling"]]
-        .filter(([v]) => !(one && v === "laid"))
-        .map(([v, label]) => `<option value="${v}"${inputs.orient === v ? " selected" : ""}>${label}</option>`).join("");
-      const sh = score.shackle || {};
+      syncStageFields(inputs);
+      const stageOpts = Object.entries(STAGES).map(([k, s]) => [k, s.label]);
+      const shOpts = [["auto", "Auto-pick"]].concat(catalog.shackles.map(s => [s.value, s.value + (s.approved ? "" : " (needs certificate)")]));
+      const ropeOpts = [["auto", "Auto-pick"]].concat(catalog.ropes.map(r => [r, r]));
+      const H = (sec, t) => `<h2 data-sec="${sec}">${t}<span class="hstat" data-hstat="${sec}"></span></h2>`;
+      const sh = (score && score.shackle) || {};
       document.getElementById("form").innerHTML = `
         ${canCopyDesign() ? '<div class="copyrow noprint"><button type="button" id="copyDesign">Copy designed plate</button></div>' : ""}
-        <h2>Load</h2><div class="fgrid">
-        ${groups.Load[0]}
-        <label class="row${mark === "n" ? " on" : ""}" data-mark="n"><span class="sym">n</span><span>Pad eyes</span><select data-key="n">${nSel}</select><span></span></label>
-        ${(one ? groups.Load.slice(2, 4) : groups.Load.slice(1, 4)).join("")}
-        <label class="row${mark === "orient" ? " on" : ""}" data-mark="orient"><span class="sym"></span><span>Where the plate sits</span><select data-key="orient">${oSel}</select><span></span></label>
-        ${laid || one ? "" : field("oop", "φ", "Out of plane angle", "deg")}
-        ${laid ? groups.Load[4] : ""}
+        <div class="colhead"><span></span><span>Parameter</span><span>Requirement</span><span>Recommended</span><span>Input</span><span>Unit</span><span>Status</span></div>
+        ${H("load", "Load")}<div class="fgrid">
+        ${cselect("stage", "", "Lift type", stageOpts, inputs.stage)}
+        ${cfield("mgw", "R", "Max gross weight", "lb")}
+        ${cfield("theta", "θ", "Sling angle from horizontal", "deg")}
+        ${cfield("k", "k", "Uneven load factor", "")}
         </div>
-        <h2>Lifting set</h2><div class="fgrid">
-        <label class="row${mark === "rope" ? " on" : ""}" data-mark="rope"><span class="sym"></span><span>Wire rope</span><select data-key="rope">${ropes}</select><span></span></label>
-        ${groups.Shackle.join("")}
+        ${H("req", "Required")}<div class="fgrid">
+        ${cread("wllmin", "WLLmin", "Min WLL lifting set", "t")}
+        ${cread("wlls", "WLLs", "Required WLL per leg", "t")}
         </div>
-        <h2>Shackle</h2><div class="fgrid">
-        <label class="row${mark === "shackle" ? " on" : ""}" data-mark="shackle"><span class="sym"></span><span>Shackle</span><select data-key="shackle">${shOpts}</select><span></span></label>
-        <div class="read${mark === "A" ? " on" : ""}" data-mark="A"><span class="sym">A</span><span>Jaw width</span><b id="jawA">${fmt(sh.A, 3)} in</b></div>
-        <div class="read${mark === "pin" ? " on" : ""}" data-mark="pin"><span class="sym">d</span><span>Pin diameter</span><b id="pinD">${fmt(sh.B, 3)} in</b></div>
-        <div class="read${mark === "C" ? " on" : ""}" data-mark="C"><span class="sym">C</span><span>Inside length</span><b id="lenC">${fmt(sh.C, 3)} in</b></div>
+        ${H("set", "Lifting set")}<div class="fgrid">
+        ${cselect("rope", "", "Wire rope size", ropeOpts, inputs.rope || "auto")}
+        ${cread("ml", "", "Master link", "")}
+        ${cselect("fore", "", "Forerunner", [["0", "None"], ["1", "Add forerunner"]], inputs.fore || "0")}
+        ${cfield("tol", "", "Extra bow gap allowance", "in")}
         </div>
-        <h2>Plate you are trying</h2><div class="fgrid">
-        ${groups.Plate.join("")}</div>`;
+        ${H("shk", "Shackle")}<div class="fgrid">
+        ${cselect("shackle", "", "Shackle", shOpts, inputs.shackle || "auto")}
+        ${cread("jawA", "A", "Jaw width", "in")}
+        ${cread("pinB", "B", "Pin diameter", "in")}
+        ${cread("lenC", "C", "Inside length", "in")}
+        </div>
+        ${H("plate", "Plate you are trying")}<div class="fgrid">
+        ${cfield("re", "Re", "Plate yield strength", "ksi")}
+        ${cfield("t", "t", "Main plate thickness", "in")}
+        ${cfield("R", "R", "Main plate radius", "in")}
+        ${cfield("Dh", "Dh", "Hole diameter", "in")}
+        ${cfield("b", "b", "Base width", "in")}
+        ${cfield("h", "h", "Hole centre to base", "in")}
+        ${inputs.stage === "5" ? cfield("tilt", "", "Plate tilt from vertical", "deg") : cfield("oop", "φ", "Out of plane angle", "deg")}
+        ${cselect("cheek", "", "Cheek plates", [["0", "None"], ["1", "Include"]], inputs.cheek || "0")}
+        ${inputs.cheek === "1" ? cfield("tc", "tc", "Cheek thickness each side", "in") + cfield("Rc", "Rc", "Cheek radius", "in") + cfield("w", "w", "Cheek weld leg", "in") : ""}
+        </div>`;
+    }
+    function paintCheckStatus() {
+      const ls = checkLs, st = {}, val = {}, req = Object.assign({}, REQ);
+      const P = (b) => (b ? "PASS" : "FAIL");
+      if (ls) {
+        val.wllmin = fmt(ls.wll_min_t, 3); val.wlls = fmt(ls.wll_req_t, 3);
+        req.wlls = ls.n_legs === 4 ? "WLLmin / (3 cos β)" : ls.n_legs === 2 ? "WLLmin / (2 cos β)" : "WLLmin";
+        if (ls.leg) st.rope = P(ls.leg.util <= 1 && !ls.leg.too_small);
+        if (ls.master_link) { val.ml = `A-1346 stock ${ls.master_link.stock}`; st.ml = P(ls.master_link.util <= 1 && ls.master_link.inside_ok); } else val.ml = "None";
+        if (ls.forerunner) st.fore = P(ls.forerunner.util <= 1);
+        if (ls.shackle) st.shackle = P(ls.shackle.utilisation <= 1);
+      }
+      const fit = (n) => { const f = score && score.fits ? score.fits.find((x) => x.name.startsWith(n)) : null; return f ? P(f.ok) : ""; };
+      if (score && score.shackle) { val.jawA = fmt(score.shackle.A, 3); val.pinB = fmt(score.shackle.B, 3); val.lenC = fmt(score.shackle.C, 3); }
+      if (score && !score.block) {
+        st.tol = fit("Thimble fits shackle bow");
+        const a = fit("Thickness fits shackle jaw"), b = fit("Thickness >= 75");
+        if (a && b) st.t = P(a === "PASS" && b === "PASS");
+        if (inputs.cheek === "1") { st.tc = a; st.Rc = fit("Cheek radius"); }
+        const chk = (n) => { const r = (score.rows || []).find((x) => x.name.startsWith(n)); return r ? P(r.ok) : ""; };
+        st.b = chk("Base"); if (inputs.cheek === "1") st.w = chk("Eq. 4.15");
+        st.re = P(["Eq. 4.13", "Eq. 4.14", "Base"].every((n) => chk(n) !== "FAIL"));
+        if (inputs.stage === "5") st.tilt = fit("Sling in line");
+        st.R = fit("R within"); st.Dh = fit("Hole clears") || fit("Hole clearance");
+      }
+      if (score && score.block) {
+        if (/rope/i.test(score.block)) st.rope = "FAIL";
+        if (/shackle/i.test(score.block)) st.shackle = "FAIL";
+        if (/weld leg/i.test(score.block)) st.w = "FAIL";
+      }
+      const f = document.getElementById("form");
+      f.querySelectorAll("[data-val]").forEach((e) => { e.textContent = val[e.dataset.val] ?? ""; });
+      f.querySelectorAll(".fgrid > [data-mark]").forEach((row) => {
+        const id = row.dataset.mark;
+        let q = row.querySelector(":scope > .req"), s2 = row.querySelector(":scope > .stat2");
+        if (!q) { q = document.createElement("span"); q.className = "req"; row.appendChild(q); }
+        if (!s2) { s2 = document.createElement("span"); s2.className = "stat2"; row.appendChild(s2); }
+        q.textContent = req[id] || ""; s2.textContent = st[id] || ""; s2.className = "stat2 " + (st[id] === "PASS" ? "pass" : st[id] === "FAIL" ? "fail" : "");
+      });
+      f.querySelectorAll("h2[data-sec]").forEach((h) => {
+        const g = h.nextElementSibling, vals = [...g.querySelectorAll(".stat2")].map((e) => e.textContent).filter(Boolean);
+        let r = vals.length ? P(vals.every((v) => v === "PASS")) : "";
+        if (h.dataset.sec === "plate" && score && score.pass !== null && score.pass !== undefined) r = P(score.pass && (!vals.length || vals.every((v) => v === "PASS")));
+        if (h.dataset.sec === "load" || h.dataset.sec === "req") r = ls ? "PASS" : "";
+        const e = h.querySelector(".hstat"); if (e) { e.textContent = r; e.className = "hstat " + (r === "PASS" ? "pass" : r === "FAIL" ? "fail" : ""); }
+      });
+    }
+    function checkShackleResult(name) {
+      const trial = Object.assign({}, inputs, { shackle: name });
+      try {
+        const { inp, ls } = resolvedCheck(trial);
+        const sc = doScore(inp);
+        const us = [];
+        if (sc && !sc.block && sc.governingU != null) us.push(sc.governingU);
+        if (ls && ls.shackle) us.push(ls.shackle.utilisation);
+        if (sc && sc.fits) sc.fits.forEach((f) => { if (!f.ok) us.push(1.01); });
+        if (sc && sc.block) return { ok: false, u: us.length ? Math.max(...us.filter(Number.isFinite)) : Infinity };
+        const finite = us.filter(Number.isFinite);
+        const u = finite.length ? Math.max(...finite) : 0;
+        const ok = !!(sc && sc.pass && (!ls || !ls.shackle || ls.shackle.utilisation <= 1) && (!ls || !ls.leg || (ls.leg.util <= 1 && !ls.leg.too_small)));
+        return { ok, u };
+      } catch (e) { return null; }
+    }
+    function paintCheckShackleLabels() {
+      const sel = document.querySelector('#form select[data-key="shackle"]');
+      if (!sel) return;
+      [...sel.options].forEach((op) => {
+        if (op.value === "auto") return;
+        if (!op.dataset.base) op.dataset.base = op.textContent.replace(/\s+(PASS|FAIL)(\s+[0-9.∞]+)?$/, "");
+        const r = checkShackleResult(op.value);
+        const uTxt = r && Number.isFinite(r.u) ? fmt(r.u, 2) : (r ? "—" : "");
+        op.textContent = r ? `${op.dataset.base}  ${r.ok ? "PASS" : "FAIL"} ${uTxt}`.trim() : `${op.dataset.base}  FAIL`;
+        op.style.color = r && r.ok ? "#1f5f1f" : "#a1261b";
+      });
+      const cur = sel.options[sel.selectedIndex]; if (cur) sel.title = cur.textContent;
+    }
+    function paintCheckRecs() {
+      const recs = {};
+      try {
+        const keep = Object.assign({}, dz);
+        // free overrides so Recommended is the clean design
+        Object.assign(dz, { shackle: "auto", tset: "", bset: "", cheek: "0", rope: "auto" });
+        const o = runDesign();
+        Object.assign(dz, keep);
+        if (o && o.d) {
+          recs.shackle = `${o.d.shackle_type} ${o.d.shackle_size}`;
+          recs.t = fmt(o.d.t, 3);
+          recs.b = fmt(o.d.b, 4);
+          recs.R = fmt(o.d.R, 4);
+          recs.Dh = fmt(o.d.Dh, 3);
+          recs.h = fmt(o.d.h, 4);
+          if (o.ropeLabel) recs.rope = o.ropeLabel;
+        }
+      } catch (e) { /* leave blank */ }
+      document.querySelectorAll("#form [data-rec]").forEach((el) => { el.textContent = recs[el.dataset.rec] ?? ""; });
     }
 
     function outline(b, h, R) {
@@ -1304,8 +1496,13 @@
     function tables() {
       const checks = document.getElementById("checks");
       const fits = document.getElementById("fits");
+      const shWll = (mode === "design" && designed && designed.ls && designed.ls.shackle)
+        ? [{ name: "Shackle WLL, WLLs vs SWL (t)", value: designed.ls.wll_req_t, limit: designed.ls.shackle.wll_dnv, util: designed.ls.shackle.utilisation, ok: designed.ls.shackle.utilisation <= 1 }]
+        : (mode === "check" && checkLs && checkLs.shackle)
+          ? [{ name: "Shackle WLL, WLLs vs SWL (t)", value: checkLs.wll_req_t, limit: checkLs.shackle.wll_dnv, util: checkLs.shackle.utilisation, ok: checkLs.shackle.utilisation <= 1 }]
+          : [];
       checks.innerHTML = `<tr><th>Check</th><th>Result</th><th>Limit</th><th>Util</th><th>Status</th></tr>` +
-        (score.rows || []).concat(mode === "design" && designed && designed.ls && designed.ls.shackle ? [{ name: "Shackle WLL, WLLs vs SWL (t)", value: designed.ls.wll_req_t, limit: designed.ls.shackle.wll_dnv, util: designed.ls.shackle.utilisation, ok: designed.ls.shackle.utilisation <= 1 }] : []).map(row => `<tr class="${row.ok ? "" : "bad"}"><td>${row.name}</td><td class="num">${fmt(row.value, 3)}</td><td class="num">${fmt(row.limit, 3)}</td><td class="num">${fmt(row.util, 3)}</td><td>${row.ok ? "Pass" : "Fail"}</td></tr>`).join("");
+        (score.rows || []).concat(shWll).map(row => `<tr class="${row.ok ? "" : "bad"}"><td>${row.name}</td><td class="num">${fmt(row.value, 3)}</td><td class="num">${fmt(row.limit, 3)}</td><td class="num">${fmt(row.util, 3)}</td><td>${row.ok ? "Pass" : "Fail"}</td></tr>`).join("");
       fits.innerHTML = `<tr><th>Fit</th><th>Values</th><th>Status</th></tr>` +
         (score.fits || []).map(row => `<tr class="${row.ok ? "" : "bad"}"><td>${row.name}</td><td>${row.text}</td><td>${row.ok ? "Pass" : "Fail"}</td></tr>`).join("");
       const pass = score.pass === true;
@@ -1324,7 +1521,7 @@
     function ucRows() {
       const out = [], N = (x) => Number(x);
       const add = (name, res, lim, uc, ok) => out.push({ name, res, lim, uc, ok });
-      const ls = designed ? designed.ls : null;
+      const ls = mode === "design" ? (designed ? designed.ls : null) : checkLs;
       if (score && !score.block) {
         (score.rows || []).forEach((r) => add(chipName(r.name), fmt(r.value, 3), fmt(r.limit, 3), r.util, r.ok));
       }
@@ -1378,16 +1575,16 @@
 
     function highlight() {
       document.querySelectorAll("[data-mark]").forEach(el => el.classList.toggle("on", el.dataset.mark === mark));
-      const sh = score.shackle || {};
-      const jaw = document.getElementById("jawA");
-      const pin = document.getElementById("pinD");
-      const len = document.getElementById("lenC");
-      if (jaw) jaw.textContent = `${fmt(sh.A, 3)} in`;
-      if (pin) pin.textContent = `${fmt(sh.B, 3)} in`;
-      if (len) len.textContent = `${fmt(sh.C, 3)} in`;
+      const sh = score && score.shackle ? score.shackle : {};
+      const setVal = (id, v) => { const el = document.querySelector(`[data-val="${id}"]`); if (el) el.textContent = v; };
+      if (sh.A != null) setVal("jawA", fmt(sh.A, 3));
+      if (sh.B != null) setVal("pinB", fmt(sh.B, 3));
+      if (sh.C != null) setVal("lenC", fmt(sh.C, 3));
     }
     function shackleFig() {
-      const name = inputs.shackle || "", sp = name.indexOf(" ");
+      let name = inputs.shackle || "";
+      if ((!name || name === "auto") && score && score.shackle) name = `${score.shackle.type} ${score.shackle.size}`;
+      const sp = name.indexOf(" ");
       const r = sp > 0 ? (PadEye.SHACKLES[name.slice(0, sp)] || {})[name.slice(sp + 1)] : null;
       document.getElementById("shkTitle").textContent = r ? `Shackle ${name}` : "Shackle";
       const host = document.getElementById("shk");
@@ -1419,6 +1616,7 @@
     function paintViews() { highlight(); shackleFig(); front(); side(); postSketch(); bow(); tables(); }
 
     function commit() {
+      if (mode === "check") { refreshAll(false); return; }
       score = doScore(inputs);
       paintViews();
     }
@@ -1452,6 +1650,13 @@
       if (!key) return;
       inputs[key] = event.target.value;
       mark = key;
+      if (key === "stage") syncStageFields(inputs);
+      if (key === "cheek" && inputs.cheek !== "1") { inputs.tc = "0"; inputs.Rc = "0"; inputs.w = "0"; }
+      if (mode === "check") {
+        checkInputs = Object.assign({}, inputs);
+        refreshAll(key === "stage" || key === "cheek");
+        return;
+      }
       if (key === "n" && inputs.n === "1" && inputs.orient === "laid") inputs.orient = "vertical";
       if (key === "orient" || key === "n") drawForm();
       commit();
@@ -1461,6 +1666,10 @@
     function start() {
       catalog = PadEye.catalog();
       inputs = PadEye.blankSheet();
+      inputs.stage = stageFromNO(inputs.n, inputs.orient);
+      inputs.fore = "0";
+      inputs.cheek = (Number(inputs.tc) > 0 ? "1" : "0");
+      if (inputs.cheek !== "1") { inputs.tc = "0"; inputs.Rc = "0"; inputs.w = "0"; }
       checkInputs = Object.assign({}, inputs);
       refreshAll(true);
     }

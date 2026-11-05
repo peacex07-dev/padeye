@@ -355,6 +355,9 @@
       const shOpts = [["auto", "Auto-pick"]].concat(catalog.shackles.map(s => [s.value, s.value + (s.approved ? "" : " (needs certificate)")]));
       const ropeOpts = [["auto", "Auto-pick"]].concat(catalog.ropes.map(r => [r, r]));
       document.getElementById("form").innerHTML = `
+        <h2>Shackle</h2><div class="fgrid">
+        ${dselect("stdshackle", "", "Shackle", shOpts, dz.shackle).replace('data-dkey="stdshackle"', 'data-dkey="shackle"')}
+        </div>
         <h2>Lift</h2><div class="fgrid">
         ${dselect("stage", "", "Lift type", stageOpts, dz.stage)}
         ${dfield("mgw", "", "Max gross weight", "lb")}
@@ -367,8 +370,7 @@
         ${dz.cheek === "1" ? dfield("tc", "tc", "Cheek thickness, each side", "in") + dfield("Rc", "Rc", "Cheek radius", "in") + dfield("w", "w", "Cheek weld leg", "in") : ""}
         ${dz.stage === "5" ? dfield("tilt", "", "Plate tilt from vertical (blank = auto)", "deg", "auto") : dfield("oop", "φ", "Sling angle out of plate plane", "deg")}
         </div>
-        <h2>Shackle and rope</h2><div class="fgrid">
-        ${dselect("stdshackle", "", "Shackle", shOpts, dz.shackle).replace('data-dkey="stdshackle"', 'data-dkey="shackle"')}
+        <h2>Rope</h2><div class="fgrid">
         ${dselect("stdrope", "", "Wire rope size", ropeOpts, dz.rope).replace('data-dkey="stdrope"', 'data-dkey="rope"')}
         ${dfield("tol", "", "Extra bow-gap allowance", "in")}
         ${dselect("fore", "", "Forerunner", [["0", "None"], ["1", "Add forerunner"]], dz.fore)}
@@ -517,6 +519,12 @@
       const sh = score.shackle || {};
       document.getElementById("form").innerHTML = `
         ${canCopyDesign() ? '<div class="copyrow noprint"><button type="button" id="copyDesign">Copy designed plate</button></div>' : ""}
+        <h2>Shackle</h2><div class="fgrid">
+        <label class="row${mark === "shackle" ? " on" : ""}" data-mark="shackle"><span class="sym"></span><span>Shackle</span><select data-key="shackle">${shOpts}</select><span></span></label>
+        <div class="read${mark === "A" ? " on" : ""}" data-mark="A"><span class="sym">A</span><span>Jaw width</span><b id="jawA">${fmt(sh.A, 3)} in</b></div>
+        <div class="read${mark === "pin" ? " on" : ""}" data-mark="pin"><span class="sym">d</span><span>Pin diameter</span><b id="pinD">${fmt(sh.B, 3)} in</b></div>
+        <div class="read${mark === "C" ? " on" : ""}" data-mark="C"><span class="sym">C</span><span>Inside length</span><b id="lenC">${fmt(sh.C, 3)} in</b></div>
+        </div>
         <h2>Load</h2><div class="fgrid">
         ${groups.Load[0]}
         <label class="row${mark === "n" ? " on" : ""}" data-mark="n"><span class="sym">n</span><span>Pad eyes</span><select data-key="n">${nSel}</select><span></span></label>
@@ -525,13 +533,9 @@
         ${laid || one ? "" : field("oop", "φ", "Out of plane angle", "deg")}
         ${laid ? groups.Load[4] : ""}
         </div>
-        <h2>Shackle and rope</h2><div class="fgrid">
-        <label class="row${mark === "shackle" ? " on" : ""}" data-mark="shackle"><span class="sym"></span><span>Shackle</span><select data-key="shackle">${shOpts}</select><span></span></label>
+        <h2>Rope</h2><div class="fgrid">
         <label class="row${mark === "rope" ? " on" : ""}" data-mark="rope"><span class="sym"></span><span>Wire rope</span><select data-key="rope">${ropes}</select><span></span></label>
         ${groups.Shackle.join("")}
-        <div class="read${mark === "A" ? " on" : ""}" data-mark="A"><span class="sym">A</span><span>Jaw width</span><b id="jawA">${fmt(sh.A, 3)} in</b></div>
-        <div class="read${mark === "pin" ? " on" : ""}" data-mark="pin"><span class="sym">d</span><span>Pin diameter</span><b id="pinD">${fmt(sh.B, 3)} in</b></div>
-        <div class="read${mark === "C" ? " on" : ""}" data-mark="C"><span class="sym">C</span><span>Inside length</span><b id="lenC">${fmt(sh.C, 3)} in</b></div>
         </div>
         <h2>Plate you are trying</h2><div class="fgrid">
         ${groups.Plate.join("")}</div>`;

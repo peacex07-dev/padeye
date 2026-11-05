@@ -284,6 +284,12 @@
     #form, #topbar, #designOut, #eqs { width: 816px; max-width: 100%; }
     .panel.shk svg { width: 100%; max-height: 230px; }
     .panel.front { overflow-x: auto; }
+    .lsnote { margin: 2px 0 8px; padding: 6px 10px 8px; border: 1px solid #e5e5e5; background: #fafafa; font-size: 12px; line-height: 1.45; color: #2f343a; width: 816px; max-width: 100%; box-sizing: border-box; }
+    .lsnote .lsrow { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 8px; align-items: start; padding: 3px 0; border-bottom: 1px solid #f0f0f0; }
+    .lsnote .lsrow:last-child { border-bottom: 0; }
+    .lsnote .lslabel { font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .02em; color: #555; padding-top: 2px; }
+    .lsnote .lsbody { min-width: 0; }
+    .lsnote .lsbody.order { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11.5px; background: var(--result); padding: 4px 6px; user-select: all; }
     #views .panel.front svg { max-width: none; }
     .shksvg .dl { stroke: #333; stroke-width: 1; } .shksvg .dt { font-size: 12px; font-weight: 700; fill: #1f3864; }
     @media (min-width: 1100px) and (max-width: 1319px) {
@@ -613,6 +619,7 @@
         ${dselect("fore", "", "Forerunner", [["0", "None"], ["1", "Add forerunner"]], dz.fore)}
         ${dfield("tol", "", "Extra bow gap allowance", "in")}
         </div>
+        ${lsNoteHtml()}
         ${H("shk", "Shackle")}<div class="fgrid">
         ${dselect("stdshackle", "", "Shackle", shOpts, dz.shackle).replace('data-dkey="stdshackle"', 'data-dkey="shackle"').replace('data-rec="stdshackle"', 'data-rec="shackle"').replace('data-mark="stdshackle"', 'data-mark="shackle"')}
         ${dread("jawA", "A", "Jaw width", "in")}
@@ -633,6 +640,22 @@
     }
     const REQ = { rope: "WLL ≥ WLLs", ml: "WLL ≥ WLLmin", fore: "WLL ≥ WLLmin", tol: "thimble fits bow", shackle: "WLLs < SWL",
       tset: "0.75A ≤ t ≤ A", tc: "t + 2tc ≤ A", Rc: "Rc ≤ R", wllmin: "Table 8-1", k: "≥ 1" };
+    function lsNoteHtml() {
+      return `<div class="lsnote" data-mark="lsdesc">
+        <div class="lsrow"><div class="lslabel">Description</div><div class="lsbody" data-ls="summary"></div></div>
+        <div class="lsrow"><div class="lslabel">Order description</div><div class="lsbody order" data-ls="order"></div></div>
+      </div>`;
+    }
+    function paintLsDesc(ls) {
+      const sum = document.querySelector('#form [data-ls="summary"]');
+      const ord = document.querySelector('#form [data-ls="order"]');
+      if (!sum || !ord) return;
+      if (!ls) { sum.textContent = ""; ord.textContent = ""; return; }
+      try {
+        sum.textContent = LiftingSet.summarySentence(ls) || "";
+        ord.textContent = LiftingSet.orderLine(ls) || "";
+      } catch (e) { sum.textContent = ""; ord.textContent = ""; }
+    }
     function paintStatus() {
       const o = designed, ok = !!(o && o.d), ls = o && o.ls;
       const st = {}, val = {}, req = Object.assign({}, REQ);
@@ -876,6 +899,7 @@
         }
         paintStatus();
         paintShackleLabels();
+        paintLsDesc(designed && designed.ls);
       } else {
         document.getElementById("views").style.display = "";
         document.getElementById("eqs").style.display = "";
@@ -899,6 +923,7 @@
         paintCheckRecs();
         paintCheckStatus();
         paintCheckShackleLabels();
+        paintLsDesc(checkLs);
       }
     }
 
@@ -991,6 +1016,7 @@
         ${cselect("fore", "", "Forerunner", [["0", "None"], ["1", "Add forerunner"]], inputs.fore || "0")}
         ${cfield("tol", "", "Extra bow gap allowance", "in")}
         </div>
+        ${lsNoteHtml()}
         ${H("shk", "Shackle")}<div class="fgrid">
         ${cselect("shackle", "", "Shackle", shOpts, inputs.shackle || "auto")}
         ${cread("jawA", "A", "Jaw width", "in")}

@@ -193,5 +193,91 @@
     };
   }
 
-  return { design, selectSling, selectMasterLink, selectThimble, selectShackle, ropeWllLb, forerunnerLength, US_ROPE_SIZES, tToLb, ROPE_SPEC };
+
+  const NUMBER_WORDS = { 1: "one", 2: "two", 4: "four" };
+
+  function comma0(n) {
+    if (n === null || n === undefined || !Number.isFinite(Number(n))) return "—";
+    return Math.round(Number(n)).toLocaleString("en-US");
+  }
+  function fracIn(x) {
+    const eighths = Math.round(Number(x) * 8);
+    let whole = Math.floor(eighths / 8), rem = eighths % 8;
+    if (rem === 0) return `${whole}"`;
+    let num = rem, den = 8;
+    while (num % 2 === 0) { num /= 2; den /= 2; }
+    return whole ? `${whole}-${num}/${den}"` : `${num}/${den}"`;
+  }
+  function ftIn(x) {
+    const inches = Number(x);
+    const ft = Math.floor(inches / 12), rem = inches - ft * 12;
+    if (ft <= 0) return `${PadEye.pythonFixed ? PadEye.pythonFixed(rem, 1) : rem.toFixed(1)} in`;
+    return rem < 0.05 ? `${ft} ft` : `${ft} ft ${PadEye.pythonFixed ? PadEye.pythonFixed(rem, 1) : rem.toFixed(1)} in`;
+  }
+
+  /** One-sentence description (Python summary_sentence). Leg lengths need the container footprint — omitted here. */
+  function summarySentence(r) {
+    if (!r) return "";
+    const n = r.n_legs, nWord = NUMBER_WORDS[n] || String(n);
+    const leg = r.leg, fr = r.forerunner, ml = r.master_link, sh = r.shackle;
+    const wllMinLb = tToLb(r.wll_min_t);
+    const parts = [];
+    const missing = [];
+    if (leg) {
+      parts.push(`${nWord} ${leg.size} ${ROPE_SPEC} wire rope legs to EN 13414-1 [8.3.3.2], lengths not sized on this page, with ferrule-secured eyes to EN 13411-3 and Crosby G-414 thimbles`);
+    } else missing.push("wire rope legs");
+    if (fr) {
+      parts.push(`a ${fr.size} ${ROPE_SPEC} wire rope forerunner, length ${ftIn(fr.length)}, with ferrule-secured eyes and Crosby G-414 thimbles`);
+    }
+    if (ml) {
+      const onePer = n === 2 ? ", one leg per sublink" : "";
+      parts.push(`a Crosby A-1346 Grade 100 master link assembly to EN 1677-4, stock ${ml.stock} (WLL ${comma0(ml.wll_lb)} lb)${onePer}`);
+    } else if (n !== 1) missing.push("master link");
+    if (sh) {
+      const shName = sh.dnv_ta ? sh.type : "G-2130";
+      parts.push(`${nWord} Crosby ${shName} ${sh.size} bolt-type shackles with hex nut and split pin, stock ${sh.stock} (WLL ${comma0(tToLb(sh.wll))} lb)`);
+    } else missing.push("shackles");
+    let certs = ("all components DNV type approved [8.2] with 3.1 material certificates and "
+      + "Charpy impact testing to 31 ft-lb average at -4 F [8.4], and the assembled "
+      + "lifting set certified to [8.6] and marked to [8.7]");
+    if (sh && !sh.dnv_ta) {
+      certs += "; the shackles are NOT type approved and require a DNV product certificate [8.2]";
+    }
+    if (!parts.length) {
+      return `Lifting set for R = ${comma0(r.mgw_lb)} lb: components not available (${missing.join(", ") || "see warnings"}).`;
+    }
+    const body = parts.length === 1 ? parts[0] : parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1];
+    let s = (`${nWord.charAt(0).toUpperCase() + nWord.slice(1)}-leg wire rope lifting set rated for `
+      + `R = ${comma0(r.mgw_lb)} lb with a minimum working load limit of `
+      + `${comma0(wllMinLb)} lb per DNV-ST-E271 Table 8-1, `
+      + `consisting of ${body}; requires ${certs}.`);
+    if (missing.length) s += ` Missing on this page: ${missing.join(", ")}.`;
+    return s;
+  }
+
+  /** One-line order description (Python order_line). Leg lengths omitted (no footprint on this page). */
+  function orderLine(r) {
+    if (!r) return "";
+    const leg = r.leg, fr = r.forerunner, ml = r.master_link, sh = r.shackle;
+    if (!(leg && ml && sh)) {
+      return "Not available — a component exceeds its catalogue range (see warnings).";
+    }
+    let sling = `${leg.size} × (leg lengths not sized on this page) DNVGL-ST-E271 Type Approved ${r.n_legs}-Leg Sling`;
+    if (fr) {
+      const frShort = (() => {
+        const inches = Number(fr.length);
+        const ft = Math.floor(inches / 12), rem = Math.round(inches - ft * 12);
+        return rem ? `${ft}'-${rem}"` : `${ft}'-0"`;
+      })();
+      sling += ` with ${fr.size} × ${frShort} Forerunner`;
+    }
+    const shName = sh.dnv_ta ? "G2130-OC" : "G2130";
+    const shCert = sh.dnv_ta ? "" : " (DNV product certificate)";
+    return (`${sling} on ${fracIn(ml.A)} A1346 Crosby Sub Assembly `
+      + `(stock ${ml.stock}), HDTS all ends, ${sh.size} ${shName} Crosby BTA `
+      + `shackles${shCert} on bottoms, captivated`);
+  }
+
+  return { design, selectSling, selectMasterLink, selectThimble, selectShackle, ropeWllLb, forerunnerLength, US_ROPE_SIZES, tToLb, ROPE_SPEC, summarySentence, orderLine };
 });
+

@@ -4,61 +4,96 @@
   <meta charset="utf-8">
   <title>DNV 2.7-1 / DNV-ST-E271 pad eye</title>
   <style>
-    :root { --ink: #1c1915; --muted: #595959; --line: #d0d0d0; --paper: #ffffff; --blue: #0070C0; --ok: #006100; --bad: #8d2e2e; --title: #DEEAF1; --input: #FFF2CC; --result: #E2EFDA; }
+    :root { --ink: #1c1915; --muted: #5b6168; --line: #d5d9de; --paper: #ffffff; --blue: #0070C0; --ok: #0b5d1e; --bad: #8d2e2e; --title: #DEEAF1; --input: #FFF6D9; --result: #E6F2DF; --soft: #F4F6F8; }
     * { box-sizing: border-box; }
-    body { margin: 0; color: var(--ink); background: var(--paper); font: 12pt "Courier New", Courier, monospace; }
+    html { -webkit-text-size-adjust: 100%; }
+    body { margin: 0; color: var(--ink); background: var(--paper); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
     header, main { width: min(1180px, calc(100% - 28px)); margin: 0 auto; }
-    header { display: flex; justify-content: space-between; gap: 16px; align-items: end; padding: 12px 14px; margin-top: 12px; background: var(--title); }
-    h1 { margin: 0; font-family: "Courier New", Courier, monospace; font-size: 12pt; font-weight: 700; }
-    h2 { margin: 22px 0 8px; font-family: "Courier New", Courier, monospace; font-size: 12pt; font-weight: 700; background: #F2F2F2; padding: 2px 6px; }
+    main { padding-bottom: 40px; }
+    header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-end; padding: 14px 18px; margin-top: 14px; background: var(--title); border-radius: 6px; }
+    h1 { margin: 0; font-size: 21px; line-height: 1.25; font-weight: 700; }
+    h2 { margin: 26px 0 10px; font-size: 17px; line-height: 1.3; font-weight: 700; padding: 0 0 5px; border-bottom: 2px solid var(--line); }
     p { margin: 4px 0; }
-    .muted { color: var(--muted); font-size: 9pt; }
+    .muted { color: var(--muted); font-size: 13px; }
     button, select, input { font: inherit; color: inherit; }
-    button { border: 1px solid #8fa0b5; border-radius: 0; padding: 6px 12px; background: var(--title); color: var(--ink); cursor: pointer; font-weight: 700; }
-    .layout { display: grid; grid-template-columns: minmax(280px, 420px) minmax(0, 1fr); gap: 18px; align-items: start; padding-bottom: 28px; }
-    .panel { background: #ffffff; border: 1px solid var(--line); padding: 12px; }
-    label.row, .read { display: grid; grid-template-columns: 48px minmax(0, 1fr) 110px 36px; gap: 6px; align-items: center; padding: 3px 4px; cursor: pointer; }
-    .read { grid-template-columns: 48px minmax(0, 1fr) auto; background: var(--result); color: var(--ok); font-weight: 700; }
-    label.row.on, .read.on { outline: 2px solid var(--blue); }
-    .sym { font-weight: 700; }
-    input, select { width: 100%; padding: 4px 6px; border: 1px solid #bfbfbf; background: var(--input); font-weight: 700; }
-    .unit { color: var(--muted); font-size: 9pt; }
-    .stats { display: flex; gap: 18px; margin: 8px 0 12px; }
-    .stat { background: var(--result); color: var(--ok); padding: 8px 12px; min-width: 140px; }
-    .stat b { display: block; font-size: 14pt; }
+    button { border: 1px solid #8fa0b5; border-radius: 6px; padding: 8px 14px; background: var(--title); color: var(--ink); cursor: pointer; font-weight: 600; }
+    .panel { background: #ffffff; border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px 12px; min-width: 0; }
+    .panel h2 { margin-top: 2px; font-size: 15px; }
+    input, select { width: 100%; min-width: 0; padding: 6px 8px; border: 1px solid #b9c0c8; border-radius: 4px; background: var(--input); font-weight: 600; font-size: 15px; }
+    .unit { color: var(--muted); font-size: 13px; }
+    .stats { display: flex; flex-wrap: wrap; gap: 12px; margin: 14px 0 6px; }
+    .stat { background: var(--result); color: var(--ok); padding: 9px 16px; min-width: 190px; border-radius: 6px; font-size: 14px; }
+    .stat b { display: block; font-size: 20px; line-height: 1.3; }
     .pass { color: var(--ok); } .fail { color: var(--bad); }
     svg { width: 100%; height: auto; display: block; }
-    table { width: 100%; border-collapse: collapse; background: white; margin-bottom: 12px; }
-    th, td { padding: 6px 8px; text-align: left; vertical-align: top; font-size: 10pt; }
-    th { font-size: 9pt; color: var(--muted); background: #F2F2F2; }
+    table { width: 100%; border-collapse: collapse; background: white; margin-bottom: 14px; font-size: 14px; }
+    th, td { padding: 7px 10px; text-align: left; vertical-align: top; font-size: 14px; border-bottom: 1px solid #e6e9ec; }
+    th { font-size: 13px; color: var(--muted); background: var(--soft); font-weight: 600; }
     td.num { text-align: right; white-space: nowrap; background: var(--result); color: var(--ok); font-weight: 700; }
     td.eq { color: var(--blue); }
     tr.bad td:first-child { color: var(--bad); }
-    .note { font-size: 9pt; color: var(--muted); }
-    #form { margin-top: 6px; }
-    #form h2 { margin: 8px 0 4px; font-size: 11pt; }
-    .fgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(370px, 1fr)); gap: 2px 14px; }
-    #form label.row, #form .read { grid-template-columns: 36px minmax(0, 1fr) 140px 26px; padding: 2px 4px; }
-    #form select { font-size: 9pt; }
-    #form label.row > span:nth-child(2) { font-size: 10pt; line-height: 1.15; }
-    #form label.row[data-mark="stage"], #form label.row[data-mark="single"], #form label.row[data-mark="orient"], #form label.row[data-mark="shackle"], #form label.row[data-mark="stdshackle"] { grid-column: span 2; grid-template-columns: 36px minmax(0, 150px) minmax(0, 1fr) 26px; }
-    #form .read { grid-template-columns: 34px minmax(0, 1fr) auto; }
-    #form .note { margin: 4px 0 0; }
-    .modebar { display: flex; gap: 0; margin: 12px 0 0; }
-    .modebar button { flex: 0 0 auto; background: #F2F2F2; border-color: #bfbfbf; }
+    .note { font-size: 13px; color: var(--muted); }
+    #form { margin-top: 10px; }
+    #form h2 { margin: 14px 0 8px; font-size: 16px; }
+    .fgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(235px, 1fr)); gap: 12px 18px; align-items: end; }
+    label.row, .read { display: grid; grid-template-columns: auto minmax(0, 1fr) 40px; grid-template-areas: "sym lab lab" "inp inp unit"; column-gap: 8px; row-gap: 3px; align-items: center; cursor: pointer; min-width: 0; }
+    label.row > .sym, .read > .sym { grid-area: sym; font-weight: 700; color: var(--blue); }
+    label.row > :nth-child(2), .read > :nth-child(2) { grid-area: lab; font-size: 13.5px; line-height: 1.25; color: #2f343a; }
+    label.row > input { grid-area: inp; }
+    label.row > select { grid-column: 1 / -1; grid-row: 2; }
+    label.row > :nth-child(4) { grid-area: unit; }
+    .read { grid-template-areas: "sym lab" "val val"; grid-template-columns: auto minmax(0, 1fr); cursor: default; }
+    .read > b { grid-area: val; background: var(--result); color: var(--ok); padding: 6px 8px; border-radius: 4px; font-size: 15px; }
+    label.row[data-mark="stage"], label.row[data-mark="orient"] { grid-column: span 2; }
+    #form .note { margin: 10px 0 0; }
+    .modebar { display: flex; flex-wrap: wrap; gap: 0; margin: 14px 0 0; }
+    .modebar button { flex: 0 1 auto; background: var(--soft); border-color: #b9c0c8; border-radius: 0; }
+    .modebar button:first-child { border-radius: 6px 0 0 6px; }
+    .modebar button:last-child { border-radius: 0 6px 6px 0; }
     .modebar button.on { background: var(--blue); color: #fff; border-color: var(--blue); }
-    .errbox { background: #f7e1e1; color: var(--bad); padding: 8px 12px; margin: 8px 0; font-weight: 700; }
+    .errbox { background: #f7e1e1; color: var(--bad); padding: 9px 12px; margin: 8px 0; font-weight: 700; border-radius: 6px; }
     .warn { color: var(--bad); font-weight: 700; }
-    table.dz td:first-child { white-space: nowrap; font-weight: 700; width: 170px; }
-    table.dz td.pick { background: var(--result); color: var(--ok); font-weight: 700; }
-    table.dz tr.on td { outline: 2px solid var(--blue); outline-offset: -2px; }
+    table.dz td:first-child { font-weight: 700; width: 190px; }
+    table.dz td.pick { background: var(--result); color: var(--ok); font-weight: 700; width: 260px; }
     table.dz tr[data-mark] { cursor: pointer; }
+    #designOut h2 { margin-top: 22px; }
+    .drawings { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; margin-top: 18px; }
+    .drawings .panel svg { max-width: 480px; margin: 0 auto; }
+    .drawings #side svg { max-width: 320px; }
+    #views > .note { margin: 8px 0 14px; }
+    .tscroll { overflow-x: auto; }
+    @media (max-width: 860px) {
+      .drawings { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 700px) {
+      body { font-size: 15px; }
+      header, main { width: calc(100% - 20px); }
+      header { flex-direction: column; align-items: stretch; padding: 12px; }
+      header button { align-self: flex-start; }
+      h1 { font-size: 18px; }
+      .modebar button { flex: 1 1 100%; border-radius: 6px !important; margin-bottom: -1px; text-align: left; }
+      .fgrid { grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+      label.row[data-mark="stage"], label.row[data-mark="orient"], label.row[data-mark="shackle"], label.row[data-mark="stdshackle"] { grid-column: 1 / -1; }
+      .stats { flex-direction: column; }
+      .stat { min-width: 0; width: 100%; }
+      .drawings { grid-template-columns: 1fr; }
+      table.dz, table.dz tbody, table.dz tr, table.dz td { display: block; width: auto !important; }
+      table.dz tr:first-child { display: none; }
+      table.dz tr { border: 1px solid var(--line); border-radius: 6px; margin-bottom: 8px; overflow: hidden; }
+      table.dz td { border: 0; padding: 4px 10px; }
+      table.dz td:first-child { padding-top: 8px; background: var(--soft); }
+      table.dz td:last-child { padding-bottom: 8px; color: #3a3f45; }
+      .tscroll table { min-width: 640px; }
+    }
+    @media (max-width: 440px) {
+      .fgrid { grid-template-columns: 1fr; }
+    }
     @media print {
       body { background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .noprint { display: none !important; }
       .modebar { display: none !important; }
       header, main { width: auto; }
-      .layout { display: block; }
+      .drawings { display: block; }
       .panel, table, .stat { break-inside: avoid; }
       input, select { background: #FFF2CC !important; }
     }
@@ -69,7 +104,6 @@
     <div>
       <p class="muted" id="asset">DNV-ST-E271 [4.2.4.1], [4.4.1]</p>
       <h1>DNV 2.7-1 / DNV-ST-E271 pad eye</h1>
-      <p class="muted" id="lede"></p>
     </div>
     <button class="noprint" id="print" type="button">Print</button>
   </header>
@@ -80,27 +114,24 @@
     <div id="designOut"></div>
     <div>
       <section id="views">
-        <div class="panel">
-          <h2>Front view, looking at the plate</h2>
-          <div id="front"></div>
-          <p class="note">Solid line is the main plate. The dashed circle is the cheek. Force arrows are RSL on the sling, then N and V at the hole in the plate plane. Fop is the out-of-plane part: the out-of-plane angle plus the 2.5° alignment tolerance.</p>
-        </div>
-        <div class="layout" style="grid-template-columns: 1fr 1fr; margin-top: 12px;">
+        <div class="drawings">
+          <div class="panel front">
+            <h2>Front view, looking at the plate</h2>
+            <div id="front"></div>
+          </div>
           <div class="panel"><h2>Edge view</h2><div id="side"></div></div>
           <div class="panel"><h2>Orientation on the top perimeter beam</h2><div id="post"></div></div>
+          <div class="panel bowp">
+            <h2>Rope gap</h2>
+            <div id="bow"></div>
+          </div>
         </div>
-        <div class="panel" style="margin-top: 12px;">
-          <h2>Space between the rope and the pad eye</h2>
-          <div id="bow"></div>
-        </div>
-        <p class="note" id="help"></p>
       </section>
     </div>
     <div id="eqs">
-    <h2>Equations with these inputs</h2>
-    <p class="note">Substituted equations are blue. Results are green. Inputs are yellow. Source file: 04_4-4-1_PadEye.py. Imperial.</p>
-    <table id="checks"></table>
-    <table id="fits"></table>
+    <h2>Checks</h2>
+    <div class="tscroll"><table id="checks"></table></div>
+    <div class="tscroll"><table id="fits"></table></div>
     </div>
   </main>
   <script src="calc.js"></script>
@@ -285,16 +316,13 @@
         ${dfield("tol", "tol", "Entered bow-gap tolerance", "in")}
         ${dselect("fore", "—", "Forerunner", [["0", "Not needed"], ["1", "Add a forerunner"]], dz.fore)}
         </div>
-        <p class="note">The plate, hole, thickness and radius are picked for you. They show below. Switch to Check to type your own plate.</p>`;
+`;
     }
 
     function drawModebar() {
       document.getElementById("modebar").innerHTML =
         `<button type="button" data-mode="design" class="${mode === "design" ? "on" : ""}">Design: pick shackle, plate and lifting set</button>` +
         `<button type="button" data-mode="check" class="${mode === "check" ? "on" : ""}">Check a plate I type in</button>`;
-      document.getElementById("lede").textContent = mode === "design"
-        ? "Enter the lift. The page picks the shackle, the pad eye plate and the lifting set, then draws and checks the plate. Plate rules are 04_4-4-1_PadEye.py (Rev 16). Lifting set rules are 02_8-3_LiftingSet.py."
-        : "Change any yellow input. The drawing mark follows the row you select. The check is the arithmetic in 04_4-4-1_PadEye.py.";
     }
 
     function lbT(t) { return `${fmt(t, 3)} t (${fmt(LiftingSet.tToLb(t), 0)} lb)`; }
@@ -306,34 +334,31 @@
       const n = ls.n_legs;
       const tw = n === 1 ? 1 : (1 / n) / Math.cos(ls.beta * Math.PI / 180);
       rows.push(drow("", "Lifting set", n === 1 ? "Single pad eye, single leg" : `${n}-leg set, ${n} pad eyes`,
-        `Rg ${fmt(ls.mgw_lb, 0)} lb. WLLmin ${lbT(ls.wll_min_t)} from Table 8-1. ${n === 1 ? "" : `Sling ${fmtDeg(ls.angle_h)}° from horizontal, β ${fmtDeg(ls.beta)}°.`}`));
+        `Rg ${fmt(ls.mgw_lb, 0)} lb · WLLmin ${fmt(ls.wll_min_t, 3)} t${n === 1 ? "" : ` · sling ${fmtDeg(ls.angle_h)}°`}`));
       rows.push(drow("", "Load per leg", lbT(ls.wll_req_t),
-        n === 1 ? `WLLmin × k ${fmt(out.in.k, 3)}` : `WLLmin × T/W ${fmt(tw, 4)} × leg factor ${n === 4 ? "4/3" : "1"} × k ${fmt(out.in.k, 3)}. For ${n} legs this is WLLmin ÷ (${n === 4 ? "3" : "2"} cos β).`));
+        `k ${fmt(out.in.k, 3)}`));
       if (ls.leg) {
-        rows.push(drow("rope", "Sling legs", `${ls.leg.size} wire rope`, `${ls.rope_spec}. Single-leg WLL ${fmt(ls.leg.wll_lb, 0)} lb. Utilisation ${fmt(ls.leg.util, 3)}.${ls.leg.size === '2-1/2"' ? " 2-1/2 in has no G-414 thimble." : ""}`));
+        rows.push(drow("rope", "Sling legs", `${ls.leg.size} wire rope`, `WLL ${fmt(ls.leg.wll_lb, 0)} lb · Util ${fmt(ls.leg.util, 3)}${ls.leg.size === '2-1/2"' ? " · no G-414 thimble" : ""}`));
       }
       if (ls.thimble) {
         const th = ls.thimble;
-        const fit = th.bow_fits === undefined ? "" : (th.bow_fits && th.width_fits ? " Fits the shackle." : ` <span class="warn">Does not fit the shackle${th.bow_fits ? "" : " (thimble bow too wide)"}${th.width_fits ? "" : " (thimble wider than the shackle)"}.</span>`);
-        rows.push(drow("", "Thimble", `Crosby G-414 for ${th.rope_in}`, `Stock ${th.stock}. D ${fmt(th.D, 2)} in, E ${fmt(th.E, 2)} in.${fit}`));
+        const fit = th.bow_fits === undefined ? "" : (th.bow_fits && th.width_fits ? " · fits" : ` · <span class="warn">does not fit${th.bow_fits ? "" : " (bow)"}${th.width_fits ? "" : " (width)"}</span>`);
+        rows.push(drow("", "Thimble", `Crosby G-414 for ${th.rope_in}`, `Stock ${th.stock} · D ${fmt(th.D, 2)} · E ${fmt(th.E, 2)} in${fit}`));
       }
       const sh = ls.shackle;
       if (sh) {
-        const note = forPad
-          ? (ls.smallest_shackle && (ls.smallest_shackle.type !== sh.type || ls.smallest_shackle.size !== sh.size)
-            ? ` The lifting set alone would take ${ls.smallest_shackle.type} ${ls.smallest_shackle.size}; the pad eye plate needed this one.` : "")
-          : " Smallest by the lifting set alone. No pad eye shackle yet.";
-        rows.push(drow("pin", "Shackle", `${sh.type} ${sh.size}`, `WLL ${fmt(sh.wll_dnv, 2)} t at DF 6 (rated ${fmt(sh.wll, 2)} t). Utilisation ${fmt(sh.utilisation, 3)}. Stock ${sh.stock}. Jaw A ${fmt(sh.A, 3)} in, pin ${fmt(sh.B, 3)} in, inside length C ${fmt(sh.C, 3)} in.${sh.dnv_ta ? "" : " Needs a product certificate."}${note}`));
+        const diff = forPad && ls.smallest_shackle && (ls.smallest_shackle.type !== sh.type || ls.smallest_shackle.size !== sh.size);
+        rows.push(drow("pin", "Shackle", `${sh.type} ${sh.size}`, `WLL ${fmt(sh.wll_dnv, 2)} t · Util ${fmt(sh.utilisation, 3)} · A ${fmt(sh.A, 3)} · pin ${fmt(sh.B, 3)} · C ${fmt(sh.C, 3)} in · stock ${sh.stock}${sh.dnv_ta ? "" : ' · <span class="warn">needs certificate</span>'}${diff ? ` · set alone: ${ls.smallest_shackle.type} ${ls.smallest_shackle.size}` : ""}`));
       }
       if (ls.master_link) {
         const m = ls.master_link;
-        rows.push(drow("", "Master link", `Crosby A-1346, stock ${m.stock}`, `WLL ${fmt(m.wll_lb, 0)} lb for WLLmin ${lbT(ls.wll_min_t)}. Utilisation ${fmt(m.util, 3)}. A ${fmt(m.A, 2)}, B ${fmt(m.B, 2)}, C ${fmt(m.C, 2)} in.${m.inside_ok ? "" : ' <span class="warn">Inside size is under the DNV minimum 270 × 140 mm.</span>'} Chain G100 ${m.g100}, G80 ${m.g80}.`));
+        rows.push(drow("", "Master link", `Crosby A-1346, stock ${m.stock}`, `WLL ${fmt(m.wll_lb, 0)} lb · Util ${fmt(m.util, 3)} · A ${fmt(m.A, 2)} · B ${fmt(m.B, 2)} · C ${fmt(m.C, 2)} in${m.inside_ok ? "" : ' · <span class="warn">under min 270 × 140 mm</span>'} · chain G100 ${m.g100}, G80 ${m.g80}`));
       } else {
-        rows.push(drow("", "Master link", "None", "A single leg goes straight to the hook."));
+        rows.push(drow("", "Master link", "None", ""));
       }
       if (ls.forerunner) {
         const f = ls.forerunner;
-        rows.push(drow("", "Forerunner", `${f.size} wire rope, ${fmt(f.length / 12, 0)} ft minimum`, `Sized for WLLmin. Single-leg WLL ${fmt(f.wll_lb, 0)} lb, utilisation ${fmt(f.util, 3)}. API 2CCU Table 16 minimum ${fmt(f.api_len, 0)} in for ${fmt(f.api_d, 3)} in rope. The reach part needs the master link height; 02_8-3_LiftingSet.py has it.`));
+        rows.push(drow("", "Forerunner", `${f.size} wire rope, ${fmt(f.length / 12, 0)} ft min`, `WLL ${fmt(f.wll_lb, 0)} lb · Util ${fmt(f.util, 3)} · API min ${fmt(f.api_len, 0)} in`));
       }
       return rows.join("");
     }
@@ -342,23 +367,22 @@
       if (mode !== "design" || !designed) { host.innerHTML = ""; return; }
       const out = designed;
       let html = "";
-      if (out.error) html += `<div class="errbox">No design: ${esc(out.error)}</div>`;
+      if (out.error) html += `<div class="errbox" title="${esc(out.error)}">No design: ${esc(String(out.error).split(/\.\s/)[0].replace(/\.$/, ""))}</div>`;
       if (out.ls) {
-        html += `<h2>Lifting set</h2><table class="dz"><tr><th>Item</th><th>Picked</th><th>Detail</th></tr>${liftingRows(out, !!out.d)}</table>
-          <p class="note">Leg lengths, set weight and reach need the container footprint. Use 02_8-3_LiftingSet.py for those. This table is its selection for a symmetric set.</p>`;
+        html += `<h2>Lifting set</h2><table class="dz"><tr><th>Item</th><th>Value</th><th>Key values</th></tr>${liftingRows(out, !!out.d)}</table>`;
       }
       if (out.d) {
         const d = out.d, r = d.result, sh = PadEye.SHACKLES[d.shackle_type][d.shackle_size];
         const hole = d.hole ? `${d.hole.label || ""} ${d.hole.tool || ""}`.trim() : "";
-        html += `<h2>Pad eye plate, designed</h2><table class="dz"><tr><th>Item</th><th>Picked</th><th>Detail</th></tr>
-          ${drow("shackle", "Shackle", `${d.shackle_type} ${d.shackle_size}`, `Required WLL ${fmt(d.wll_req, 3)} t (DNV 8.3.2) from WLLmin ${fmt(d.wll_min, 3)} t.${d.stepped_up.length ? " Stepped up past: " + esc(d.stepped_up.join("; ")) + "." : ""}`)}
-          ${drow("t", "Plate thickness t", `${fmt(d.t, 3)} in`, `Stock plate, between 0.75 A (${fmt(0.75 * sh.A, 3)} in) and A (${fmt(sh.A, 3)} in).`)}
-          ${drow("R", "Radius R", `${fmt(d.R, 4)} in`, `Hole centre to the outer edge. Rounded up to 1/16 in.`)}
-          ${drow("Dh", "Hole diameter Dh", `${fmt(d.Dh, 3)} in`, `Pin ${fmt(sh.B, 3)} in. Within 6 percent of the pin.${hole ? " " + esc(hole) + "." : ""}`)}
-          ${drow("b", "Base width b", `${fmt(d.b, 4)} in`, "Welded to the container.")}
+        html += `<h2>Pad eye plate, designed</h2><table class="dz"><tr><th>Item</th><th>Value</th><th>Key values</th></tr>
+          ${drow("shackle", "Shackle", `${d.shackle_type} ${d.shackle_size}`, `WLL req ${fmt(d.wll_req, 3)} t${d.stepped_up.length ? ` · stepped up ${d.stepped_up.length}×` : ""}`)}
+          ${drow("t", "Plate thickness t", `${fmt(d.t, 3)} in`, `0.75 A ${fmt(0.75 * sh.A, 3)} to A ${fmt(sh.A, 3)} in`)}
+          ${drow("R", "Radius R", `${fmt(d.R, 4)} in`, "")}
+          ${drow("Dh", "Hole diameter Dh", `${fmt(d.Dh, 3)} in`, `pin ${fmt(sh.B, 3)} in${hole ? " · " + esc(hole) : ""}`)}
+          ${drow("b", "Base width b", `${fmt(d.b, 4)} in`, "")}
           ${drow("h", "Hole centre to base h", `${fmt(d.h, 4)} in`, "")}
-          ${drow("", "Cheeks", "None", "Single plate.")}
-          ${drow("", "Design load RSL", `${fmt(r.rsl, 0)} lb`, esc(r.load_basis || ""))}
+          ${drow("", "Cheeks", "None", "")}
+          ${drow("", "Design load RSL", `${fmt(r.rsl, 0)} lb`, "")}
           </table>`;
       }
       host.innerHTML = html;
@@ -636,7 +660,7 @@
           forces += arrow(X(0), Y(h), X(vEnd[0]), Y(h + vEnd[1]), "#1f5c3a", `V ${fmt(V, 3)} kip`);
         }
         if (Number.isFinite(Fop) && Math.abs(Fop) > 1e-6) {
-          forces += lbl(`Fop ${fmt(Fop, 3)} kip out of page (see edge view)`, 8, 17, { x: 8, y: 17, fixed: true, fill: "#5f584c", bold: false });
+          forces += lbl(`Fop ${fmt(Fop, 3)} kip (out of page)`, 8, 17, { x: 8, y: 17, fixed: true, fill: "#5f584c", bold: false });
         }
       }
       // R is drawn up and to the left so it does not lie under the N arrow. Dh gets a leader at the lower right.
@@ -797,9 +821,7 @@
         : "";
 
       host.innerHTML = `<svg viewBox="0 0 ${W} ${H}">${beam}${plate}${axes}</svg>
-        <p class="note">${caption}</p>
-        <p class="note">Y is the plan direction from this pad eye to the ML. Turn the plate in plan so its face lines up with the sling. On a 4-leg lift that is the diagonal toward the centre of lift, not the beam edge.</p>
-        <p class="note">${forceNote}</p>`;
+`;
       placeLabels(host.querySelector("svg"));
     }
 
@@ -824,19 +846,19 @@
         return bar;
       }).join("");
       const note = score.gap < 0
-        ? [`The plate, thimble, and rope overrun the bow by ${fmt(-score.gap, 3)} in.`]
-        : [`Clear space between the rope and the pad eye radius: ${fmt(score.gap, 3)} in.`, `The minimum is ${fmt(score.tolEff, 3)} in.`];
+        ? [`Overrun ${fmt(-score.gap, 3)} in`]
+        : [`Gap ${fmt(score.gap, 3)} in (min ${fmt(score.tolEff, 3)} in)`];
       const noteSvg = note.map((line, i) => lbl(line, 0, 16 + i * 17, { x: 2, y: 16 + i * 17, fixed: true, fill: "#5f584c", size: 13, bold: false })).join("");
-      host.innerHTML = `<svg viewBox="0 0 560 116">${noteSvg}${bars}${lbl(`Rmin ${fmt(score.rMin, 3)} in. Rmax ${fmt(score.rMax, 3)} in.`, 0, 110, { x: 2, y: 110, fixed: true, fill: "#5f584c", size: 12, bold: false })}</svg>`;
+      host.innerHTML = `<svg viewBox="0 0 560 116">${noteSvg}${bars}${lbl(`Rmin ${fmt(score.rMin, 3)} · Rmax ${fmt(score.rMax, 3)} in`, 0, 110, { x: 2, y: 110, fixed: true, fill: "#5f584c", size: 12, bold: false })}</svg>`;
       placeLabels(host.querySelector("svg"));
     }
 
     function tables() {
       const checks = document.getElementById("checks");
       const fits = document.getElementById("fits");
-      checks.innerHTML = `<tr><th>Check</th><th>What the file reports</th><th>Result</th><th>Limit</th><th>Utilisation</th></tr>` +
-        (score.rows || []).map(row => `<tr class="${row.ok ? "" : "bad"}"><td>${row.name}</td><td class="eq">${row.info || ""}</td><td class="num">${fmt(row.value, 3)}</td><td class="num">${fmt(row.limit, 3)}</td><td class="num">${fmt(row.util, 3)}</td></tr>`).join("");
-      fits.innerHTML = `<tr><th>Fit</th><th>What was compared</th><th>Result</th></tr>` +
+      checks.innerHTML = `<tr><th>Check</th><th>Result</th><th>Limit</th><th>Util</th><th>Status</th></tr>` +
+        (score.rows || []).map(row => `<tr class="${row.ok ? "" : "bad"}"><td>${row.name}</td><td class="num">${fmt(row.value, 3)}</td><td class="num">${fmt(row.limit, 3)}</td><td class="num">${fmt(row.util, 3)}</td><td>${row.ok ? "Pass" : "Fail"}</td></tr>`).join("");
+      fits.innerHTML = `<tr><th>Fit</th><th>Values</th><th>Status</th></tr>` +
         (score.fits || []).map(row => `<tr class="${row.ok ? "" : "bad"}"><td>${row.name}</td><td>${row.text}</td><td>${row.ok ? "Pass" : "Fail"}</td></tr>`).join("");
       const pass = score.pass === true;
       document.getElementById("stats").innerHTML = score.block
@@ -844,7 +866,6 @@
         : `<div class="stat"><b class="${pass ? "pass" : "fail"}">${pass ? "Pass" : "Fail"}</b><span>Plate and fits</span></div>
            <div class="stat"><b>${fmt(score.governingU, 3)}</b><span>${score.governing || ""}</span></div>
            <div class="stat"><b>${fmt(score.rsl, 3)}</b><span>Design load RSL, lb</span></div>`;
-      document.getElementById("help").textContent = HELP[mark] || "";
     }
 
     function highlight() {
@@ -900,7 +921,6 @@
     function start() {
       catalog = PadEye.catalog();
       inputs = PadEye.blankSheet();
-      document.getElementById("asset").textContent = "DNV-ST-E271 [4.2.4.1], [4.4.1]. Opens from the file. No server is required to calculate.";
       checkInputs = Object.assign({}, inputs);
       refreshAll(true);
     }

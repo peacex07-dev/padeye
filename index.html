@@ -321,8 +321,8 @@
 
     function drawModebar() {
       document.getElementById("modebar").innerHTML =
-        `<button type="button" data-mode="design" class="${mode === "design" ? "on" : ""}">Design: pick shackle, plate and lifting set</button>` +
-        `<button type="button" data-mode="check" class="${mode === "check" ? "on" : ""}">Check a plate I type in</button>`;
+        `<button type="button" data-mode="design" class="${mode === "design" ? "on" : ""}">Design</button>` +
+        `<button type="button" data-mode="check" class="${mode === "check" ? "on" : ""}">Check Existing</button>`;
     }
 
     function lbT(t) { return `${fmt(t, 3)} t (${fmt(LiftingSet.tToLb(t), 0)} lb)`; }

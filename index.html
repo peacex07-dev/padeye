@@ -307,9 +307,8 @@
       #form .req:empty, #form .rec:empty { display: none; }
       #form .colhead { display: none; }
     }
-    @media (min-width: 861px) {
-      #form .fgrid > label.row:has(> select[data-key]) { grid-template-areas: "sym lab inp inp inp inp st"; }
-    }
+    /* Check selects use data-key; pin them to Input like Design's data-dkey (grid-area: inp). */
+    #form .fgrid > label.row:has(> select[data-key]) > select { grid-area: inp; }
   </style>
 </head>
 <body>
@@ -1077,8 +1076,16 @@
       const recs = {};
       try {
         const keep = Object.assign({}, dz);
-        // free overrides so Recommended is the clean design
-        Object.assign(dz, { shackle: "auto", tset: "", bset: "", cheek: "0", rope: "auto" });
+        syncStageFields(inputs);
+        // Same free Design as paintRecs, driven by the Check load so Recommended tracks this page
+        Object.assign(dz, {
+          stage: inputs.stage || "1", single: "0",
+          mgw: String(inputs.mgw ?? dz.mgw), theta: String(inputs.theta ?? dz.theta),
+          k: String(inputs.k ?? dz.k), re: String(inputs.re ?? dz.re),
+          tol: String(inputs.tol ?? "0"), oop: String(inputs.oop ?? "0"),
+          tilt: String(inputs.tilt ?? ""),
+          shackle: "auto", tset: "", bset: "", cheek: "0", rope: "auto", fore: "0",
+        });
         const o = runDesign();
         Object.assign(dz, keep);
         if (o && o.d) {
@@ -1089,6 +1096,8 @@
           recs.Dh = fmt(o.d.Dh, 3);
           recs.h = fmt(o.d.h, 4);
           if (o.ropeLabel) recs.rope = o.ropeLabel;
+        } else if (o && o.ropeLabel) {
+          recs.rope = o.ropeLabel;
         }
       } catch (e) { /* leave blank */ }
       document.querySelectorAll("#form [data-rec]").forEach((el) => { el.textContent = recs[el.dataset.rec] ?? ""; });

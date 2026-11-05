@@ -35,6 +35,11 @@
     .note { font-size: 13px; color: var(--muted); }
     #form { margin-top: 10px; }
     #form h2 { margin: 14px 0 8px; font-size: 16px; }
+    .fgrid > * { position: relative; }
+    .grip { position: absolute; left: -15px; top: 50%; transform: translateY(-50%); cursor: grab; touch-action: none; user-select: none; color: #9aa7b4; font-size: 16px; line-height: 1; padding: 6px 2px; }
+    .dragging { opacity: .5; outline: 2px dashed #9aa7b4; }
+    .layoutbar { display: flex; gap: 8px; justify-content: flex-end; margin: 4px 0; }
+    .layoutbar button { font-size: 12px; padding: 3px 8px; }
     .fgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(235px, 1fr)); gap: 12px 18px; align-items: end; }
     label.row, .read { display: grid; grid-template-columns: auto minmax(0, 1fr) 40px; grid-template-areas: "sym lab lab" "inp inp unit"; column-gap: 8px; row-gap: 3px; align-items: center; cursor: pointer; min-width: 0; }
     label.row > .sym:empty { display: none; }
@@ -1004,6 +1009,74 @@
       checkInputs = Object.assign({}, inputs);
       refreshAll(true);
     }
+    /* ---------- Drag to reorder input boxes; order kept in this browser per mode ---------- */
+    const LAYOUT_KEY = "padeye.layout.v1";
+    const rowKey = (el) => el.dataset.mark || el.textContent.trim();
+    const gridKey = (g) => { const h = g.previousElementSibling; return (h && h.tagName === "H2") ? h.textContent.trim() : "grid"; };
+    function loadLayout() { try { return JSON.parse(localStorage.getItem(LAYOUT_KEY)) || {}; } catch (e) { return {}; } }
+    function saveLayout() {
+      const all = loadLayout(), cur = {};
+      document.querySelectorAll("#form .fgrid").forEach((g) => { cur[gridKey(g)] = [...g.children].map(rowKey); });
+      all[mode] = Object.assign(all[mode] || {}, cur);
+      localStorage.setItem(LAYOUT_KEY, JSON.stringify(all));
+    }
+    function applyLayout() {
+      const form = document.getElementById("form");
+      const saved = loadLayout()[mode] || {};
+      form.querySelectorAll(".fgrid").forEach((g) => {
+        const order = saved[gridKey(g)];
+        const kids = [...g.children];
+        if (order) {
+          const pos = (el) => { const i = order.indexOf(rowKey(el)); return i < 0 ? 1e6 + kids.indexOf(el) : i; };
+          kids.sort((a, b) => pos(a) - pos(b)).forEach((el) => g.appendChild(el));
+        }
+        [...g.children].forEach((el) => {
+          if (el.querySelector(":scope > .grip")) return;
+          const grip = document.createElement("span");
+          grip.className = "grip noprint"; grip.textContent = "\u2807"; grip.title = "Drag";
+          el.insertBefore(grip, el.firstChild);
+        });
+      });
+      if (!form.querySelector(".layoutbar")) {
+        const bar = document.createElement("div");
+        bar.className = "layoutbar noprint";
+        bar.innerHTML = '<button type="button" id="resetLayout">Reset layout</button><button type="button" id="copyLayout">Copy layout</button>';
+        form.insertBefore(bar, form.firstChild);
+      }
+    }
+    new MutationObserver(applyLayout).observe(document.getElementById("form"), { childList: true });
+    let dragEl = null;
+    document.getElementById("form").addEventListener("pointerdown", (e) => {
+      const grip = e.target.closest(".grip");
+      if (!grip) return;
+      e.preventDefault();
+      dragEl = grip.parentElement; dragEl.classList.add("dragging");
+      grip.setPointerCapture(e.pointerId);
+    });
+    document.getElementById("form").addEventListener("pointermove", (e) => {
+      if (!dragEl) return;
+      const under = document.elementFromPoint(e.clientX, e.clientY);
+      const target = under && under.closest(".fgrid > *");
+      if (!target || target === dragEl || target.parentElement !== dragEl.parentElement) return;
+      const r = target.getBoundingClientRect();
+      const after = (e.clientY > r.bottom - r.height / 2) || (e.clientX > r.left + r.width / 2 && e.clientY > r.top);
+      target.parentElement.insertBefore(dragEl, after ? target.nextSibling : target);
+    });
+    const endDrag = () => { if (!dragEl) return; dragEl.classList.remove("dragging"); dragEl = null; saveLayout(); };
+    document.getElementById("form").addEventListener("pointerup", endDrag);
+    document.getElementById("form").addEventListener("pointercancel", endDrag);
+    document.getElementById("form").addEventListener("click", (e) => {
+      if (e.target.id === "resetLayout") {
+        const all = loadLayout(); delete all[mode]; localStorage.setItem(LAYOUT_KEY, JSON.stringify(all));
+        refreshAll(true);
+      } else if (e.target.id === "copyLayout") {
+        const text = JSON.stringify(loadLayout());
+        const done = () => { e.target.textContent = "Copied"; setTimeout(() => { e.target.textContent = "Copy layout"; }, 1200); };
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => { prompt("Layout", text); });
+        else prompt("Layout", text);
+      }
+    });
+
     start();
   </script>
 </body>

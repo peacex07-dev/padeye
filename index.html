@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>DNV 2.7-1 / DNV-ST-E271 pad eye</title>
+  <style>
+    :root { --ink: #1c1915; --muted: #595959; --line: #d0d0d0; --paper: #ffffff; --blue: #0070C0; --ok: #006100; --bad: #8d2e2e; --title: #DEEAF1; --input: #FFF2CC; --result: #E2EFDA; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--ink); background: var(--paper); font: 12pt "Courier New", Courier, monospace; }
+    header, main { width: min(1180px, calc(100% - 28px)); margin: 0 auto; }
+    header { display: flex; justify-content: space-between; gap: 16px; align-items: end; padding: 12px 14px; margin-top: 12px; background: var(--title); }
+    h1 { margin: 0; font-family: "Courier New", Courier, monospace; font-size: 12pt; font-weight: 700; }
+    h2 { margin: 22px 0 8px; font-family: "Courier New", Courier, monospace; font-size: 12pt; font-weight: 700; background: #F2F2F2; padding: 2px 6px; }
+    p { margin: 4px 0; }
+    .muted { color: var(--muted); font-size: 9pt; }
+    button, select, input { font: inherit; color: inherit; }
+    button { border: 1px solid #8fa0b5; border-radius: 0; padding: 6px 12px; background: var(--title); color: var(--ink); cursor: pointer; font-weight: 700; }
+    .layout { display: grid; grid-template-columns: minmax(280px, 420px) minmax(0, 1fr); gap: 18px; align-items: start; padding-bottom: 28px; }
+    .panel { background: #ffffff; border: 1px solid var(--line); padding: 12px; }
+    label.row, .read { display: grid; grid-template-columns: 48px minmax(0, 1fr) 110px 36px; gap: 6px; align-items: center; padding: 3px 4px; cursor: pointer; }
+    .read { grid-template-columns: 48px minmax(0, 1fr) auto; background: var(--result); color: var(--ok); font-weight: 700; }
+    label.row.on, .read.on { outline: 2px solid var(--blue); }
+    .sym { font-weight: 700; }
+    input, select { width: 100%; padding: 4px 6px; border: 1px solid #bfbfbf; background: var(--input); font-weight: 700; }
+    .unit { color: var(--muted); font-size: 9pt; }
+    .stats { display: flex; gap: 18px; margin: 8px 0 12px; }
+    .stat { background: var(--result); color: var(--ok); padding: 8px 12px; min-width: 140px; }
+    .stat b { display: block; font-size: 14pt; }
+    .pass { color: var(--ok); } .fail { color: var(--bad); }
+    svg { width: 100%; height: auto; display: block; }
+    table { width: 100%; border-collapse: collapse; background: white; margin-bottom: 12px; }
+    th, td { padding: 6px 8px; text-align: left; vertical-align: top; font-size: 10pt; }
+    th { font-size: 9pt; color: var(--muted); background: #F2F2F2; }
+    td.num { text-align: right; white-space: nowrap; background: var(--result); color: var(--ok); font-weight: 700; }
+    td.eq { color: var(--blue); }
+    tr.bad td:first-child { color: var(--bad); }
+    .note { font-size: 9pt; color: var(--muted); }
+    .modebar { display: flex; gap: 0; margin: 12px 0 0; }
+    .modebar button { flex: 0 0 auto; background: #F2F2F2; border-color: #bfbfbf; }
+    .modebar button.on { background: var(--blue); color: #fff; border-color: var(--blue); }
+    .errbox { background: #f7e1e1; color: var(--bad); padding: 8px 12px; margin: 8px 0; font-weight: 700; }
+    .warn { color: var(--bad); font-weight: 700; }
+    table.dz td:first-child { white-space: nowrap; font-weight: 700; width: 170px; }
+    table.dz td.pick { background: var(--result); color: var(--ok); font-weight: 700; }
+    table.dz tr.on td { outline: 2px solid var(--blue); outline-offset: -2px; }
+    table.dz tr[data-mark] { cursor: pointer; }
+    @media print {
+      body { background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .noprint { display: none !important; }
+      .modebar { display: none !important; }
+      header, main { width: auto; }
+      .layout { display: block; }
+      .panel, table, .stat { break-inside: avoid; }
+      input, select { background: #FFF2CC !important; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <p class="muted" id="asset">DNV-ST-E271 [4.2.4.1], [4.4.1]</p>
+      <h1>DNV 2.7-1 / DNV-ST-E271 pad eye</h1>
+      <p class="muted" id="lede"></p>
+    </div>
+    <button class="noprint" id="print" type="button">Print</button>
+  </header>
+  <main>
+    <div class="modebar noprint" id="modebar"></div>
+    <div class="stats" id="stats"></div>
+    <div id="designOut"></div>
+    <div class="layout">
+      <section id="form"></section>
+      <section id="views">
+        <div class="panel">
+          <h2>Front view, looking at the plate</h2>
+          <div id="front"></div>
+          <p class="note">Solid line is the main plate. The dashed circle is the cheek. Force arrows are RSL on the sling, then N and V at the hole in the plate plane. Fop is the out-of-plane part: the out-of-plane angle plus the 2.5° alignment tolerance.</p>
+        </div>
+        <div class="layout" style="grid-template-columns: 1fr 1fr; margin-top: 12px;">
+          <div class="panel"><h2>Edge view</h2><div id="side"></div></div>
+          <div class="panel"><h2>Orientation on the top perimeter beam</h2><div id="post"></div></div>
+        </div>
+        <div class="panel" style="margin-top: 12px;">
+          <h2>Space between the rope and the pad eye</h2>
+          <div id="bow"></div>
+        </div>
+        <p class="note" id="help"></p>
+      </section>
+    </div>
+    <div id="eqs">
+    <h2>Equations with these inputs</h2>
+    <p class="note">Substituted equations are blue. Results are green. Inputs are yellow. Source file: 04_4-4-1_PadEye.py. Imperial.</p>
+    <table id="checks"></table>
+    <table id="fits"></table>
+    </div>
+  </main>
+  <script src="calc.js"></script>
+  <script src="lifting_set.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const project = params.get("project") || "";
+    const calc = params.get("calc") || "dnv";
+    const HELP = {
+      stage: "Stage 1: four-part, vertical plates. 2: four-part, horizontal plates. 3: two-part, vertical. 4: two-part, horizontal. 5: two-part, laid over toward the master link (the plate leans with the sling). Same five stages as 04_4-4-1_PadEye.py.",
+      single: "One pad eye with a single leg: the load is Rg (Eq. 4.6 style, 5 Rg). The set has no master link.",
+      stdshackle: "Auto starts at the smallest shackle that carries the leg load and steps up until a plate design passes and the thimble fits. Pick one to force it.",
+      stdrope: "Auto picks the smallest wire rope whose single-leg WLL carries the leg load (02_8-3_LiftingSet.py). Pick one to force it.",
+      fore: "Adds a forerunner (rope from the master link to the crane hook) sized for Rg, with the API 2CCU Table 16 minimum length.",
+      mgw: "Rg is the rating, the maximum gross weight. DNV writes this as R in the load equation. On the plate, R is the radius.",
+      n: "n is how many pad eyes share the lift. Two use one in the denominator. Four use three.",
+      theta: "θ is the sling angle from horizontal. It has to be at least 45° and below 90°. β is 90° minus θ.",
+      k: "k is the asymmetry factor. Use 1 when the pad eyes share the load equally.",
+      re: "Re is the plate yield. Tear-out, contact, and the cheek weld compare with Re. The base compares with 0.85 Re.",
+      orient: "Orientation decides which part of the sling pulls on the base.",
+      oop: "Out-of-plane angle for a vertical or horizontal pad eye, cases 1 to 4. The in-plane load is RSL times cos of this angle, then split into N and V as before. The out-of-plane load is RSL times sin of this angle plus the 2.5° alignment tolerance. Zero leaves those cases as they were. Laid over ignores this and uses the lay-down angle.",
+      tilt: "Tilt is the laid-over plate measured from vertical. Delta is the leg angle minus this tilt.",
+      rope: "The rope size picks the Crosby G-414 thimble. The thimble wall is on the bow side of the rope.",
+      tol: "Entered bow-gap tolerance. The check uses the larger of this and Crosby Tol. C.",
+      shackle: "The shackle fixes the jaw, the pin, and the inside length. The pad eye is drawn to those.",
+      t: "t is the main plate thickness. Tear-out uses this plate only.",
+      R: "R is the main-plate radius, from the hole centre to the outer edge.",
+      Dh: "Dh is the hole diameter. It has to clear the largest pin and stay within 6 percent of the pin.",
+      b: "b is the base width welded to the container.",
+      h: "h is the distance from the hole centre down to the base.",
+      tc: "tc is the cheek thickness on each side. The jaw sees t + 2 tc.",
+      Rc: "Rc is the cheek radius. The cheek weld uses the diameter 2 Rc.",
+      w: "w is the fillet weld leg around the cheek.",
+      A: "A is the shackle jaw. The stack t + 2 tc has to sit between 75 percent of A and A.",
+      pin: "The pin diameter is Crosby dimension B.",
+      C: "C is the shackle inside length. The clear space to the rope is what remains after the pad eye, the thimble wall, and the rope."
+    };
+    let inputs = {};
+    let mark = "R";
+    let score = {};
+    let catalog = { shackles: [], ropes: [] };
+
+    function num(key) { const v = Number(String(inputs[key] ?? "").replace(/,/g, "")); return Number.isFinite(v) ? v : NaN; }
+    function fmt(n, d = 3) {
+      if (n === null || n === undefined || !Number.isFinite(Number(n))) return "—";
+      const text = PadEye.pythonFixed(Number(n), d);
+      const neg = text.startsWith("-");
+      const body = neg ? text.slice(1) : text;
+      const parts = body.split(".");
+      const grouped = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      return (neg ? "-" : "") + grouped + (parts[1] !== undefined ? "." + parts[1] : "");
+    }
+    function fmtDeg(n) {
+      if (n === null || n === undefined || !Number.isFinite(Number(n))) return "—";
+      return String(Number(n));
+    }
+    const FIELDS = [
+      ["Load", "mgw", "Rg", "Rating, maximum gross weight", "lb"],
+      ["Load", "theta", "θ", "Sling angle from horizontal", "deg"],
+      ["Load", "k", "k", "Asymmetry factor", "—"],
+      ["Load", "re", "Re", "Plate yield", "ksi"],
+      ["Load", "tilt", "tilt", "Laid-over tilt from vertical", "deg"],
+      ["Shackle", "tol", "tol", "Entered bow-gap tolerance", "in"],
+      ["Plate", "t", "t", "Main plate thickness", "in"],
+      ["Plate", "R", "R", "Main plate radius", "in"],
+      ["Plate", "Dh", "Dh", "Hole diameter", "in"],
+      ["Plate", "b", "b", "Base width", "in"],
+      ["Plate", "h", "h", "Hole centre to base", "in"],
+      ["Plate", "tc", "tc", "Cheek thickness, each side", "in"],
+      ["Plate", "Rc", "Rc", "Cheek radius", "in"],
+      ["Plate", "w", "w", "Cheek weld leg", "in"]
+    ];
+
+    function esc(text) {
+      return String(text ?? "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+    }
+    function field(id, symbol, label, unit) {
+      const on = mark === id ? " on" : "";
+      return `<label class="row${on}" data-mark="${id}"><span class="sym">${symbol}</span><span>${label}</span><input data-key="${id}" value="${esc(inputs[id] ?? "")}"><span class="unit">${unit}</span></label>`;
+    }
+
+
+    /* ---------- Design mode: pick shackle, plate and lifting set from the load ---------- */
+    const STAGES = {
+      1: { legs: 4, orient: "vertical", label: "Stage 1: four-part, vertical plates" },
+      2: { legs: 4, orient: "horizontal", label: "Stage 2: four-part, horizontal plates" },
+      3: { legs: 2, orient: "vertical", label: "Stage 3: two-part, vertical plates" },
+      4: { legs: 2, orient: "horizontal", label: "Stage 4: two-part, horizontal plates" },
+      5: { legs: 2, orient: "laid", label: "Stage 5: two-part, laid over toward the master link" },
+    };
+    let mode = "design";
+    let checkInputs = null;
+    let dz = { stage: "1", single: "0", mgw: "50000", theta: "45", k: "1", re: "50", oop: "0", tilt: "", shackle: "auto", rope: "auto", tol: "0", fore: "0" };
+    let designed = null;   // { error, ls, d }
+    const dnum = (key) => Number(String(dz[key] ?? "").replace(/,/g, "").trim());
+
+    function runDesign() {
+      const st = STAGES[dz.stage];
+      const single = dz.single === "1";
+      const nPe = single ? 1 : st.legs;
+      const out = { nPe, error: null, ls: null, d: null };
+      try {
+        const mgw = dnum("mgw"), theta = single ? 90 : dnum("theta"), k = dnum("k"), re = dnum("re"), tol = dnum("tol");
+        const oop = dz.stage === "5" ? 0 : (String(dz.oop).trim() === "" ? 0 : dnum("oop"));
+        if (![mgw, theta, k, re, tol, oop].every(Number.isFinite)) throw new Error("Fill every yellow box with a number.");
+        if (mgw <= 0) throw new Error("Rating Rg must be above zero.");
+        let tilt = null;
+        if (dz.stage === "5" && !single && String(dz.tilt).trim() !== "") {
+          tilt = dnum("tilt");
+          if (!Number.isFinite(tilt)) throw new Error("Tilt must be a number, or leave it blank for auto.");
+        }
+        out.in = { mgw, theta, k, re, tol, oop, tilt };
+        const fore = dz.fore === "1";
+        const ropeChoice = dz.rope === "auto" ? null : dz.rope;
+        // 1. lifting set from the load (needed first: the rope sets the thimble that the pad eye must clear)
+        out.ls = LiftingSet.design({ mgwLb: mgw, nLegs: nPe, angleHDeg: theta, k, forerunner: fore, ropeLabel: ropeChoice });
+        if (!out.ls.leg) throw new Error("No wire rope up to 2-1/2 in carries this leg load. Split the lift or use chain.");
+        const ropeLabel = out.ls.leg.size;
+        if (!(ropeLabel in PadEye.ROPE_IN) || !(ropeLabel in PadEye.ROPE_THIMBLE)) {
+          throw new Error(`The lifting set needs ${ropeLabel} rope, which has no G-414 thimble in the pad eye tables. Use a pad eye with a different arrangement or check 02_8-3_LiftingSet.py.`);
+        }
+        if (out.ls.leg.too_small) throw new Error(`The rope you picked (${ropeLabel}, WLL ${fmt(out.ls.leg.wll_lb, 0)} lb) is below the leg load ${fmt(LiftingSet.tToLb(out.ls.wll_req_t), 0)} lb. Pick a bigger rope or Auto.`);
+        const ropeMm = PadEye.ROPE_IN[ropeLabel] * PadEye.MM_PER_IN;
+        const shackle = dz.shackle === "auto" ? PadEye.SHACKLE_AUTO : dz.shackle;
+        const ori = single ? PadEye.ORIENTATIONS[st.orient === "horizontal" ? 1 : 0]
+          : PadEye.ORIENTATIONS[{ vertical: 0, horizontal: 1, laid: 2 }[st.orient]];
+        // 2. shackle and plate (04_4-4-1_PadEye.py design_pad_eye)
+        out.d = PadEye.designPadEye(mgw, nPe, theta, k, re, ropeMm, tol, ori, null, null, shackle, st.orient === "laid" && !single ? tilt : null, oop);
+        // 3. lifting set again with the shackle the plate design settled on
+        out.ls = LiftingSet.design({ mgwLb: mgw, nLegs: nPe, angleHDeg: theta, k, forerunner: fore, shackle: `${out.d.shackle_type} ${out.d.shackle_size}`, ropeLabel: ropeChoice });
+        out.ropeLabel = ropeLabel;
+      } catch (err) {
+        if (!(err instanceof Error)) throw err;
+        out.error = err.message;
+        out.d = null;
+      }
+      return out;
+    }
+
+    function designInputs(out) {
+      const st = STAGES[dz.stage], d = out.d, i = out.in;
+      const single = out.nPe === 1;
+      const orient = single ? (st.orient === "horizontal" ? "horizontal" : "vertical") : st.orient;
+      return {
+        mgw: String(i.mgw), n: String(out.nPe), theta: String(single ? 90 : i.theta), k: String(i.k), re: String(i.re),
+        orient,
+        // blank tilt means "auto": the laid-over plate follows the sling leg exactly (delta = 0), same as tilt None in Python
+        tilt: orient === "laid" && !single ? String(i.tilt === null ? 90 - i.theta : i.tilt) : "",
+        oop: String(dz.stage === "5" ? 0 : i.oop), rope: out.ropeLabel, tol: String(i.tol),
+        shackle: `${d.shackle_type} ${d.shackle_size}`,
+        t: String(d.t), R: String(d.R), Dh: String(d.Dh), b: String(d.b), h: String(d.h), tc: "0", Rc: "0", w: "0",
+      };
+    }
+
+    function dfield(id, symbol, label, unit, ph) {
+      const on = mark === id ? " on" : "";
+      return `<label class="row${on}" data-mark="${id}"><span class="sym">${symbol}</span><span>${label}</span><input data-dkey="${id}" value="${esc(dz[id] ?? "")}"${ph ? ` placeholder="${ph}"` : ""}><span class="unit">${unit}</span></label>`;
+    }
+    function dselect(id, symbol, label, options, current) {
+      const on = mark === id ? " on" : "";
+      const opts = options.map(([v, text]) => `<option value="${esc(v)}"${v === current ? " selected" : ""}>${esc(text)}</option>`).join("");
+      return `<label class="row${on}" data-mark="${id}"><span class="sym">${symbol}</span><span>${label}</span><select data-dkey="${id}">${opts}</select><span></span></label>`;
+    }
+    function drawDesignForm() {
+      const single = dz.single === "1";
+      const stageOpts = Object.entries(STAGES).map(([k, s]) => [k, s.label]);
+      const shOpts = [["auto", "Auto: smallest that works"]].concat(catalog.shackles.map(s => [s.value, s.value + (s.approved ? "" : " — product certificate")]));
+      const ropeOpts = [["auto", "Auto: smallest that carries the leg"]].concat(catalog.ropes.map(r => [r, r]));
+      document.getElementById("form").innerHTML = `
+        <h2>Lift</h2>
+        ${dselect("stage", "—", "Stage", stageOpts, dz.stage)}
+        ${dselect("single", "—", "Lifting set", [["0", "Full set from the stage"], ["1", "One pad eye, single leg"]], dz.single)}
+        ${dfield("mgw", "Rg", "Rating, maximum gross weight", "lb")}
+        ${single ? "" : dfield("theta", "θ", "Sling angle from horizontal", "deg")}
+        ${dfield("k", "k", "Asymmetry factor", "—")}
+        ${dfield("re", "Re", "Plate yield", "ksi")}
+        ${dz.stage === "5" && !single ? dfield("tilt", "tilt", "Laid-over tilt from vertical (blank = auto)", "deg", "auto") : dfield("oop", "φ", "Out of plane angle", "deg")}
+        <h2>Shackle and rope</h2>
+        ${dselect("stdshackle", "—", "Shackle", shOpts, dz.shackle).replace('data-dkey="stdshackle"', 'data-dkey="shackle"')}
+        ${dselect("stdrope", "rope", "Wire rope", ropeOpts, dz.rope).replace('data-dkey="stdrope"', 'data-dkey="rope"')}
+        ${dfield("tol", "tol", "Entered bow-gap tolerance", "in")}
+        ${dselect("fore", "—", "Forerunner", [["0", "Not needed"], ["1", "Add a forerunner"]], dz.fore)}
+        <p class="note">The plate, hole, thickness and radius are picked for you. They show below. Switch to Check to type your own plate.</p>`;
+    }
+
+    function drawModebar() {
+      document.getElementById("modebar").innerHTML =
+        `<button type="button" data-mode="design" class="${mode === "design" ? "on" : ""}">Design: pick shackle, plate and lifting set</button>` +
+        `<button type="button" data-mode="check" class="${mode === "check" ? "on" : ""}">Check a plate I type in</button>`;
+      document.getElementById("lede").textContent = mode === "design"
+        ? "Enter the lift. The page picks the shackle, the pad eye plate and the lifting set, then draws and checks the plate. Plate rules are 04_4-4-1_PadEye.py (Rev 16). Lifting set rules are 02_8-3_LiftingSet.py."
+        : "Change any yellow input. The drawing mark follows the row you select. The check is the arithmetic in 04_4-4-1_PadEye.py.";
+    }
+
+    function lbT(t) { return `${fmt(t, 3)} t (${fmt(LiftingSet.tToLb(t), 0)} lb)`; }
+    function drow(mk, name, pick, detail, bad) {
+      return `<tr${mk ? ` data-mark="${mk}"` : ""}${bad ? ' class="bad"' : ""}><td>${name}</td><td class="pick">${pick}</td><td>${detail}</td></tr>`;
+    }
+    function liftingRows(out, forPad) {
+      const ls = out.ls, rows = [];
+      const n = ls.n_legs;
+      const tw = n === 1 ? 1 : (1 / n) / Math.cos(ls.beta * Math.PI / 180);
+      rows.push(drow("", "Lifting set", n === 1 ? "Single pad eye, single leg" : `${n}-leg set, ${n} pad eyes`,
+        `Rg ${fmt(ls.mgw_lb, 0)} lb. WLLmin ${lbT(ls.wll_min_t)} from Table 8-1. ${n === 1 ? "" : `Sling ${fmtDeg(ls.angle_h)}° from horizontal, β ${fmtDeg(ls.beta)}°.`}`));
+      rows.push(drow("", "Load per leg", lbT(ls.wll_req_t),
+        n === 1 ? `WLLmin × k ${fmt(out.in.k, 3)}` : `WLLmin × T/W ${fmt(tw, 4)} × leg factor ${n === 4 ? "4/3" : "1"} × k ${fmt(out.in.k, 3)}. For ${n} legs this is WLLmin ÷ (${n === 4 ? "3" : "2"} cos β).`));
+      if (ls.leg) {
+        rows.push(drow("rope", "Sling legs", `${ls.leg.size} wire rope`, `${ls.rope_spec}. Single-leg WLL ${fmt(ls.leg.wll_lb, 0)} lb. Utilisation ${fmt(ls.leg.util, 3)}.${ls.leg.size === '2-1/2"' ? " 2-1/2 in has no G-414 thimble." : ""}`));
+      }
+      if (ls.thimble) {
+        const th = ls.thimble;
+        const fit = th.bow_fits === undefined ? "" : (th.bow_fits && th.width_fits ? " Fits the shackle." : ` <span class="warn">Does not fit the shackle${th.bow_fits ? "" : " (thimble bow too wide)"}${th.width_fits ? "" : " (thimble wider than the shackle)"}.</span>`);
+        rows.push(drow("", "Thimble", `Crosby G-414 for ${th.rope_in}`, `Stock ${th.stock}. D ${fmt(th.D, 2)} in, E ${fmt(th.E, 2)} in.${fit}`));
+      }
+      const sh = ls.shackle;
+      if (sh) {
+        const note = forPad
+          ? (ls.smallest_shackle && (ls.smallest_shackle.type !== sh.type || ls.smallest_shackle.size !== sh.size)
+            ? ` The lifting set alone would take ${ls.smallest_shackle.type} ${ls.smallest_shackle.size}; the pad eye plate needed this one.` : "")
+          : " Smallest by the lifting set alone. No pad eye shackle yet.";
+        rows.push(drow("pin", "Shackle", `${sh.type} ${sh.size}`, `WLL ${fmt(sh.wll_dnv, 2)} t at DF 6 (rated ${fmt(sh.wll, 2)} t). Utilisation ${fmt(sh.utilisation, 3)}. Stock ${sh.stock}. Jaw A ${fmt(sh.A, 3)} in, pin ${fmt(sh.B, 3)} in, inside length C ${fmt(sh.C, 3)} in.${sh.dnv_ta ? "" : " Needs a product certificate."}${note}`));
+      }
+      if (ls.master_link) {
+        const m = ls.master_link;
+        rows.push(drow("", "Master link", `Crosby A-1346, stock ${m.stock}`, `WLL ${fmt(m.wll_lb, 0)} lb for WLLmin ${lbT(ls.wll_min_t)}. Utilisation ${fmt(m.util, 3)}. A ${fmt(m.A, 2)}, B ${fmt(m.B, 2)}, C ${fmt(m.C, 2)} in.${m.inside_ok ? "" : ' <span class="warn">Inside size is under the DNV minimum 270 × 140 mm.</span>'} Chain G100 ${m.g100}, G80 ${m.g80}.`));
+      } else {
+        rows.push(drow("", "Master link", "None", "A single leg goes straight to the hook."));
+      }
+      if (ls.forerunner) {
+        const f = ls.forerunner;
+        rows.push(drow("", "Forerunner", `${f.size} wire rope, ${fmt(f.length / 12, 0)} ft minimum`, `Sized for WLLmin. Single-leg WLL ${fmt(f.wll_lb, 0)} lb, utilisation ${fmt(f.util, 3)}. API 2CCU Table 16 minimum ${fmt(f.api_len, 0)} in for ${fmt(f.api_d, 3)} in rope. The reach part needs the master link height; 02_8-3_LiftingSet.py has it.`));
+      }
+      return rows.join("");
+    }
+    function renderDesignOut() {
+      const host = document.getElementById("designOut");
+      if (mode !== "design" || !designed) { host.innerHTML = ""; return; }
+      const out = designed;
+      let html = "";
+      if (out.error) html += `<div class="errbox">No design: ${esc(out.error)}</div>`;
+      if (out.ls) {
+        html += `<h2>Lifting set</h2><table class="dz"><tr><th>Item</th><th>Picked</th><th>Detail</th></tr>${liftingRows(out, !!out.d)}</table>
+          <p class="note">Leg lengths, set weight and reach need the container footprint. Use 02_8-3_LiftingSet.py for those. This table is its selection for a symmetric set.</p>`;
+      }
+      if (out.d) {
+        const d = out.d, r = d.result, sh = PadEye.SHACKLES[d.shackle_type][d.shackle_size];
+        const hole = d.hole ? `${d.hole.label || ""} ${d.hole.tool || ""}`.trim() : "";
+        html += `<h2>Pad eye plate, designed</h2><table class="dz"><tr><th>Item</th><th>Picked</th><th>Detail</th></tr>
+          ${drow("shackle", "Shackle", `${d.shackle_type} ${d.shackle_size}`, `Required WLL ${fmt(d.wll_req, 3)} t (DNV 8.3.2) from WLLmin ${fmt(d.wll_min, 3)} t.${d.stepped_up.length ? " Stepped up past: " + esc(d.stepped_up.join("; ")) + "." : ""}`)}
+          ${drow("t", "Plate thickness t", `${fmt(d.t, 3)} in`, `Stock plate, between 0.75 A (${fmt(0.75 * sh.A, 3)} in) and A (${fmt(sh.A, 3)} in).`)}
+          ${drow("R", "Radius R", `${fmt(d.R, 4)} in`, `Hole centre to the outer edge. Rounded up to 1/16 in.`)}
+          ${drow("Dh", "Hole diameter Dh", `${fmt(d.Dh, 3)} in`, `Pin ${fmt(sh.B, 3)} in. Within 6 percent of the pin.${hole ? " " + esc(hole) + "." : ""}`)}
+          ${drow("b", "Base width b", `${fmt(d.b, 4)} in`, "Welded to the container.")}
+          ${drow("h", "Hole centre to base h", `${fmt(d.h, 4)} in`, "")}
+          ${drow("", "Cheeks", "None", "Single plate.")}
+          ${drow("", "Design load RSL", `${fmt(r.rsl, 0)} lb`, esc(r.load_basis || ""))}
+          </table>`;
+      }
+      host.innerHTML = html;
+    }
+
+    function setMode(next) {
+      if (next === mode) return;
+      if (next === "check") {
+        // carry the designed plate over so it can be tweaked
+        if (designed && designed.d) checkInputs = designInputs(designed);
+        inputs = Object.assign({}, checkInputs || PadEye.blankSheet());
+        mode = "check";
+      } else {
+        checkInputs = Object.assign({}, inputs);
+        mode = "design";
+      }
+      refreshAll(true);
+    }
+
+    function refreshAll(redrawForm) {
+      drawModebar();
+      if (mode === "design") {
+        designed = runDesign();
+        const ok = !!(designed.d);
+        document.getElementById("views").style.display = ok ? "" : "none";
+        document.getElementById("eqs").style.display = ok ? "" : "none";
+        if (redrawForm) drawDesignForm();
+        renderDesignOut();
+        if (ok) { inputs = designInputs(designed); score = PadEye.score(inputs); paintViews(); }
+        else document.getElementById("stats").innerHTML = `<div class="stat"><b class="fail">No design</b><span>Change the inputs</span></div>`;
+      } else {
+        document.getElementById("views").style.display = "";
+        document.getElementById("eqs").style.display = "";
+        designed = null;
+        renderDesignOut();
+        score = PadEye.score(inputs);
+        if (redrawForm) drawForm();
+        paintViews();
+      }
+    }
+
+    function drawForm() {
+      const groups = {};
+      for (const [group, id, symbol, label, unit] of FIELDS) (groups[group] ||= []).push(field(id, symbol, label, unit));
+      const shOpts = catalog.shackles.map(s => `<option value="${esc(s.value)}"${s.value === inputs.shackle ? " selected" : ""}>${esc(s.value)}${s.approved ? "" : " — product certificate"}</option>`).join("");
+      const ropes = catalog.ropes.map(s => `<option value="${esc(s)}"${s === inputs.rope ? " selected" : ""}>${esc(s)}</option>`).join("");
+      const nSel = ["1", "2", "4"].map(n => `<option value="${n}"${inputs.n === n ? " selected" : ""}>${n} pad eye${n === "1" ? "" : "s"}</option>`).join("");
+      const oSel = [["vertical", "Vertical, on top of the post"], ["horizontal", "Horizontal, inside face of the post"], ["laid", "Laid over, tilted with the sling"]]
+        .map(([v, label]) => `<option value="${v}"${inputs.orient === v ? " selected" : ""}>${label}</option>`).join("");
+      const sh = score.shackle || {};
+      document.getElementById("form").innerHTML = `
+        <h2>Load</h2>
+        ${groups.Load[0]}
+        <label class="row${mark === "n" ? " on" : ""}" data-mark="n"><span class="sym">n</span><span>Number of pad eyes</span><select data-key="n">${nSel}</select><span></span></label>
+        ${groups.Load.slice(1, 4).join("")}
+        <label class="row${mark === "orient" ? " on" : ""}" data-mark="orient"><span class="sym">—</span><span>Where the plate sits</span><select data-key="orient">${oSel}</select><span></span></label>
+        ${inputs.orient === "laid" ? "" : field("oop", "φ", "Out of plane angle", "deg")}
+        ${groups.Load[4]}
+        <h2>Shackle and rope</h2>
+        <label class="row${mark === "shackle" ? " on" : ""}" data-mark="shackle"><span class="sym">—</span><span>Shackle</span><select data-key="shackle">${shOpts}</select><span></span></label>
+        <label class="row${mark === "rope" ? " on" : ""}" data-mark="rope"><span class="sym">rope</span><span>Wire rope</span><select data-key="rope">${ropes}</select><span></span></label>
+        ${groups.Shackle.join("")}
+        <div class="read${mark === "A" ? " on" : ""}" data-mark="A"><span class="sym">A</span><span>Jaw width</span><b id="jawA">${fmt(sh.A, 3)} in</b></div>
+        <div class="read${mark === "pin" ? " on" : ""}" data-mark="pin"><span class="sym">d</span><span>Pin diameter</span><b id="pinD">${fmt(sh.B, 3)} in</b></div>
+        <div class="read${mark === "C" ? " on" : ""}" data-mark="C"><span class="sym">C</span><span>Inside length</span><b id="lenC">${fmt(sh.C, 3)} in</b></div>
+        <h2>Plate you are trying</h2>
+        ${groups.Plate.join("")}`;
+    }
+
+    function outline(b, h, R) {
+      const half = b / 2, top = h + R, steps = 72, right = [];
+      for (let i = 0; i <= steps; i++) {
+        const y = top * i / steps, dy = y - h;
+        const xCirc = Math.abs(dy) <= R ? Math.sqrt(Math.max(0, R * R - dy * dy)) : 0;
+        right.push([y <= h ? Math.max(half, xCirc) : xCirc, y]);
+      }
+      return right.concat(right.map(([x, y]) => [-x, y]).reverse());
+    }
+
+
+    /** Label placement. Every diagram label is a <text class="lbl"> with an anchor box (data-a = x0,y0,x1,y1).
+     *  After the svg is in the page, placeLabels() measures each label and puts it in the first spot that
+     *  touches no other label and no drawn line. When the spot is not right next to the anchor a thin leader
+     *  line joins them. Only positions change. No text and no number is changed here. */
+    function lbl(text, ax, ay, o = {}) {
+      const a = [ax, ay, o.ax1 ?? ax, o.ay1 ?? ay].map(v => Number(v).toFixed(2)).join(",");
+      return `<text class="lbl" data-a="${a}" data-pref="${o.pref || "e,ne,se,n,s,w,nw,sw"}"${o.fixed ? ' data-fixed="1"' : ""} x="${o.x ?? ax}" y="${o.y ?? ay}" fill="${o.fill}" font-size="${o.size || 12}"${o.bold === false ? "" : ' font-weight="700"'}${o.anchor ? ` text-anchor="${o.anchor}"` : ""}>${text}</text>`;
+    }
+    function segHitsBox(s, L, T, R, B) {
+      const dx = s[2] - s[0], dy = s[3] - s[1];
+      const p = [-dx, dx, -dy, dy], q = [s[0] - L, R - s[0], s[1] - T, B - s[1]];
+      let u0 = 0, u1 = 1;
+      for (let i = 0; i < 4; i++) {
+        if (p[i] === 0) { if (q[i] < 0) return false; }
+        else { const t = q[i] / p[i]; if (p[i] < 0) u0 = Math.max(u0, t); else u1 = Math.min(u1, t); }
+      }
+      return u0 <= u1;
+    }
+    function placeLabels(svg) {
+      if (!svg) return;
+      const vb = svg.viewBox.baseVal, W = vb.width, H = vb.height;
+      const segs = [], boxes = [];
+      const num = (el, k) => Number(el.getAttribute(k));
+      svg.querySelectorAll("line").forEach(l => segs.push([num(l, "x1"), num(l, "y1"), num(l, "x2"), num(l, "y2")]));
+      svg.querySelectorAll("polyline,polygon").forEach(poly => {
+        const pts = poly.getAttribute("points").trim().split(/\s+/).map(q => q.split(",").map(Number));
+        for (let i = 0; i < pts.length - 1; i++) segs.push([pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1]]);
+        if (poly.tagName === "polygon") segs.push([pts[pts.length - 1][0], pts[pts.length - 1][1], pts[0][0], pts[0][1]]);
+      });
+      svg.querySelectorAll("circle").forEach(c => {
+        const cx = num(c, "cx"), cy = num(c, "cy"), r = num(c, "r"), n = 48;
+        for (let i = 0; i < n; i++) {
+          const a0 = i / n * 2 * Math.PI, a1 = (i + 1) / n * 2 * Math.PI;
+          segs.push([cx + r * Math.cos(a0), cy + r * Math.sin(a0), cx + r * Math.cos(a1), cy + r * Math.sin(a1)]);
+        }
+      });
+      svg.querySelectorAll("rect").forEach(r => {
+        const st = r.getAttribute("stroke");
+        if (!st || st === "none") return;
+        const x = num(r, "x"), y = num(r, "y"), w = num(r, "width"), h = num(r, "height");
+        segs.push([x, y, x + w, y, ], [x + w, y, x + w, y + h], [x + w, y + h, x, y + h], [x, y + h, x, y]);
+      });
+      const items = [...svg.querySelectorAll("text.lbl")];
+      const measured = items.map(t => {
+        const ox = t.getAttribute("x"), oy = t.getAttribute("y"), oa = t.getAttribute("text-anchor");
+        t.removeAttribute("text-anchor"); t.setAttribute("x", 0); t.setAttribute("y", 0);
+        const b = t.getBBox();
+        return { t, ox: Number(ox), oy: Number(oy), oa, w: b.width, h: b.height, dx: b.x, dy: b.y, fixed: t.dataset.fixed === "1" };
+      });
+      const hitBox = (L, T, R, B) => boxes.filter(q => !(R + 2 <= q[0] || q[2] + 2 <= L || B + 2 <= q[1] || q[3] + 2 <= T)).length;
+      const hitSeg = (L, T, R, B) => segs.filter(s => segHitsBox(s, L - 1.5, T - 1.5, R + 1.5, B + 1.5)).length;
+      const gaps = [4, 12, 24, 40, 64, 96];
+      const put = (m, L, T) => {
+        m.t.setAttribute("x", (L - m.dx).toFixed(2)); m.t.setAttribute("y", (T - m.dy).toFixed(2));
+        boxes.push([L, T, L + m.w, T + m.h]);
+      };
+      measured.filter(m => m.fixed).forEach(m => {
+        m.t.setAttribute("x", m.ox); m.t.setAttribute("y", m.oy);
+        if (m.oa) m.t.setAttribute("text-anchor", m.oa);
+        const b = m.t.getBBox(); boxes.push([b.x, b.y, b.x + b.width, b.y + b.height]);
+      });
+      let unplaced = 0;
+      measured.filter(m => !m.fixed).forEach(m => {
+        const [x0, y0, x1, y1] = m.t.dataset.a.split(",").map(Number);
+        const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, w = m.w, h = m.h;
+        const prefs = m.t.dataset.pref.split(",");
+        const all = [...new Set([...prefs, "e", "ne", "se", "n", "s", "w", "nw", "sw"])];
+        const spot = (d, g) => ({
+          c: [cx - w / 2, cy - h / 2], e: [x1 + g, cy - h / 2], w: [x0 - g - w, cy - h / 2],
+          n: [cx - w / 2, y0 - g - h], s: [cx - w / 2, y1 + g],
+          ne: [x1 + g, y0 - g - h], nw: [x0 - g - w, y0 - g - h], se: [x1 + g, y1 + g], sw: [x0 - g - w, y1 + g],
+        })[d];
+        let best = null;
+        const tryList = [];
+        if (prefs.includes("c")) tryList.push(["c", 0]);
+        for (const g of gaps) for (const d of all) if (d !== "c") tryList.push([d, g]);
+        for (const [d, g] of tryList) {
+          const [L, T] = spot(d, g), R = L + w, B = T + h;
+          let score = 0;
+          if (L < 2 || T < 2 || R > W - 2 || B > H - 2) score += 1000;
+          score += 100 * hitBox(L, T, R, B) + 10 * hitSeg(L, T, R, B);
+          let leader = null;
+          if (g > 6) {
+            const px = Math.min(Math.max(L + w / 2, x0), x1), py = Math.min(Math.max(T + h / 2, y0), y1);
+            const qx = Math.min(Math.max(px, L), R), qy = Math.min(Math.max(py, T), B);
+            leader = [px, py, qx, qy];
+            if (boxes.some(q => segHitsBox(leader, q[0] - 1, q[1] - 1, q[2] + 1, q[3] + 1))) score += 100;
+          }
+          score += g * 0.01;
+          if (!best || score < best.score) best = { score, L, T, leader };
+          if (score < 1) break;
+        }
+        if (best.score >= 1) unplaced++;
+        put(m, best.L, best.T);
+        if (best.leader) {
+          const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
+          const [a, b, c, d] = best.leader;
+          ln.setAttribute("x1", a); ln.setAttribute("y1", b); ln.setAttribute("x2", c); ln.setAttribute("y2", d);
+          ln.setAttribute("stroke", m.t.getAttribute("fill")); ln.setAttribute("stroke-width", "0.9"); ln.setAttribute("class", "leader");
+          m.t.parentNode.insertBefore(ln, m.t);
+          segs.push(best.leader);
+        }
+      });
+      svg.dataset.unplaced = String(unplaced);
+    }
+
+    function arrow(x1, y1, x2, y2, color, label, lx, ly) {
+      const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1;
+      const ux = dx / L, uy = dy / L;
+      const hx = x2 - ux * 10, hy = y2 - uy * 10;
+      const nx = -uy * 5, ny = ux * 5;
+      return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="2"/>
+        <polygon points="${x2},${y2} ${hx + nx},${hy + ny} ${hx - nx},${hy - ny}" fill="${color}"/>
+        ${lbl(label, x2, y2, { fill: color, pref: "e,ne,se,n,s,w,nw,sw" })}`;
+    }
+
+    /** Small triad in SVG pixel space. right/up are screen directions; into is the note for out-of-page. */
+    function viewAxes(ox, oy, rightLabel, upLabel, intoLabel) {
+      const L = 36;
+      return `
+        <g>
+          <line x1="${ox}" y1="${oy}" x2="${ox + L}" y2="${oy}" stroke="#1e3a5f" stroke-width="1.6"/>
+          <polygon points="${ox + L},${oy} ${ox + L - 7},${oy - 4} ${ox + L - 7},${oy + 4}" fill="#1e3a5f"/>
+          ${lbl(rightLabel, ox + L, oy, { fill: "#1e3a5f", pref: "e,ne,se" })}
+          <line x1="${ox}" y1="${oy}" x2="${ox}" y2="${oy - L}" stroke="#1e3a5f" stroke-width="1.6"/>
+          <polygon points="${ox},${oy - L} ${ox - 4},${oy - L + 7} ${ox + 4},${oy - L + 7}" fill="#1e3a5f"/>
+          ${lbl(upLabel, ox, oy - L, { fill: "#1e3a5f", pref: "ne,n,e,nw" })}
+          <circle cx="${ox}" cy="${oy}" r="3.2" fill="#fff" stroke="#1e3a5f" stroke-width="1.4"/>
+          ${lbl(intoLabel, ox, oy, { fill: "#5f584c", size: 11, bold: false, pref: "se,s,e" })}
+        </g>`;
+    }
+
+    function axisLabelsForViews() {
+      // Same frame as the orientation sketch: X length, Y width to ML, Z up.
+      if (inputs.orient === "horizontal") {
+        return {
+          front: { right: "Z up", up: "Y → ML", into: "⊙ X length (out of page)" },
+          edge: { right: "X length", up: "Z up", into: "Y → ML, in the plate plane" },
+        };
+      }
+      if (inputs.orient === "laid") {
+        return {
+          front: { right: "Y → ML", up: "along plate", into: "⊙ X length (out of page)" },
+          edge: { right: "X length", up: "along plate", into: "Y → ML, in the plate plane" },
+        };
+      }
+      return {
+        front: { right: "Y → ML", up: "Z up", into: "⊙ X length (out of page)" },
+        edge: { right: "X length", up: "Z up", into: "Y → ML, in the plate plane" },
+      };
+    }
+
+    function front() {
+      const b = num("b"), h = num("h"), R = num("R"), Dh = num("Dh"), Rc = num("Rc"), tc = num("tc");
+      const d = score.shackle ? score.shackle.B : 0;
+      if (!(b > 0 && h > 0 && R > 0 && Dh > 0)) { document.getElementById("front").innerHTML = ""; return; }
+      const cheeks = tc > 0 && Rc > 0;
+      const laid = inputs.orient === "laid";
+      const horizontal = inputs.orient === "horizontal";
+      const delta = Number(score.delta) || 0;
+      const theta = num("theta");
+      const fromH = laid ? 90 - delta : theta;
+      const rad = fromH * Math.PI / 180;
+      const len = Math.max(R, 1) * 1.15;
+      const ax = Math.cos(rad) * len, ay = Math.sin(rad) * len;
+      const N = Number(score.N_kip), V = Number(score.V_kip), Fop = Number(score.Fop_kip), P = Number(score.P_kip);
+      const forceScale = Math.max(R, 1) * 0.85 / Math.max(Math.abs(P) || 1, Math.abs(N) || 1, Math.abs(V) || 1, 1);
+      // Front view: +x right, +y up the plate. N along the plate (up for vertical/laid), V to the right.
+      const nDir = laid || !horizontal ? [0, 1] : [1, 0];
+      const vDir = laid || !horizontal ? [1, 0] : [0, 1];
+      const nEnd = [nDir[0] * (N || 0) * forceScale, nDir[1] * (N || 0) * forceScale];
+      const vEnd = [vDir[0] * (V || 0) * forceScale, vDir[1] * (V || 0) * forceScale];
+      const reach = Math.max(b / 2, R, cheeks ? Rc : 0, Dh / 2, Math.abs(ax), Math.abs(nEnd[0]), Math.abs(vEnd[0]));
+      const topY = Math.max(h + Math.max(R, cheeks ? Rc : 0), h + ay, h + nEnd[1], h + vEnd[1]);
+      // Pixel margins hold the labels: left for h, right for the force tags, top for the note, bottom for b, the beam and the axes.
+      const PL = 70, PR = 155, PT = 40, PB = 110;
+      const minX = Math.min(-reach, ax, nEnd[0], vEnd[0]) - 1.0;
+      const maxX = Math.max(reach, ax, nEnd[0], vEnd[0]) + 0.4;
+      const minY = -0.95, maxY = topY + 0.1;
+      const S = Math.min((640 - PL - PR) / (maxX - minX), (460 - PT - PB) / (maxY - minY));
+      const W = (maxX - minX) * S + PL + PR, Ht = (maxY - minY) * S + PT + PB;
+      const X = x => (x - minX) * S + PL, Y = y => (maxY - y) * S + PT;
+      const ink = id => mark === id ? "#1e3a5f" : "#5f584c";
+      const pts = outline(b, h, R).map(([x, y]) => `${X(x)},${Y(y)}`).join(" ");
+      const axLab = axisLabelsForViews().front;
+      let forces = "";
+      if (Number.isFinite(P) && P > 0) {
+        forces += arrow(X(0), Y(h), X(ax), Y(h + ay), "#8d2e2e", `RSL ${fmt(score.rsl, 3)} lb`);
+        if (Number.isFinite(N) && Math.abs(N) > 1e-6) {
+          forces += arrow(X(0), Y(h), X(nEnd[0]), Y(h + nEnd[1]), "#1e3a5f", `N ${fmt(N, 3)} kip`);
+        }
+        if (Number.isFinite(V) && Math.abs(V) > 1e-6) {
+          forces += arrow(X(0), Y(h), X(vEnd[0]), Y(h + vEnd[1]), "#1f5c3a", `V ${fmt(V, 3)} kip`);
+        }
+        if (Number.isFinite(Fop) && Math.abs(Fop) > 1e-6) {
+          forces += lbl(`Fop ${fmt(Fop, 3)} kip out of page (see edge view)`, 8, 17, { x: 8, y: 17, fixed: true, fill: "#5f584c", bold: false });
+        }
+      }
+      // R is drawn up and to the left so it does not lie under the N arrow. Dh gets a leader at the lower right.
+      const rx = X(-R * Math.SQRT1_2), ry = Y(h + R * Math.SQRT1_2);
+      const dhx = X(0) + Dh / 2 * S * Math.SQRT1_2, dhy = Y(h) + Dh / 2 * S * Math.SQRT1_2;
+      document.getElementById("front").innerHTML = `<svg viewBox="0 0 ${W} ${Ht}">
+        <rect x="${X(-b / 2 - 0.3)}" y="${Y(0)}" width="${(b + 0.6) * S}" height="${0.45 * S}" fill="#e7e0d2"/>
+        ${lbl("top perimeter beam", X(b / 2 + 0.3), Y(-0.225), { fill: "#5f584c", bold: false, pref: "e,se,s,sw,w" })}
+        <polyline points="${pts}" fill="#f3ecdf" stroke="${ink("R")}" stroke-width="${mark === "R" ? 2.4 : 1.5}"/>
+        ${cheeks ? `<circle cx="${X(0)}" cy="${Y(h)}" r="${Rc * S}" fill="none" stroke="${ink("Rc")}" stroke-dasharray="5 4"/>` : ""}
+        <circle cx="${X(0)}" cy="${Y(h)}" r="${Dh / 2 * S}" fill="white" stroke="${ink("Dh")}"/>
+        <circle cx="${X(0)}" cy="${Y(h)}" r="${Math.min(d, Dh) / 2 * S}" fill="#d9d0c1" stroke="${ink("pin")}"/>
+        <line x1="${X(0)}" y1="${Y(h)}" x2="${rx}" y2="${ry}" stroke="${ink("R")}"/>
+        ${lbl(`R ${fmt(R, 3)}`, rx, ry, { fill: ink("R"), size: 13, pref: "nw,w,n,ne,sw" })}
+        <line x1="${X(-b / 2 - 0.7)}" y1="${Y(0)}" x2="${X(-b / 2 - 0.7)}" y2="${Y(h)}" stroke="${ink("h")}"/>
+        ${lbl(`h ${fmt(h, 3)}`, X(-b / 2 - 0.7), Y(h / 2), { fill: ink("h"), size: 13, pref: "w,nw,sw" })}
+        <line x1="${X(-b / 2)}" y1="${Y(-0.75)}" x2="${X(b / 2)}" y2="${Y(-0.75)}" stroke="${ink("b")}"/>
+        ${lbl(`b ${fmt(b, 3)}`, X(0), Y(-0.75), { fill: ink("b"), size: 13, pref: "s,se,sw" })}
+        ${lbl(`Dh ${fmt(Dh, 3)}`, dhx, dhy, { fill: ink("Dh"), size: 13, pref: "se,e,s,ne,sw" })}
+        ${forces}
+        ${viewAxes(28, Ht - 40, axLab.right, axLab.up, axLab.into)}
+      </svg>`;
+      placeLabels(document.querySelector("#front svg"));
+    }
+
+    function side() {
+      const t = num("t"), h = num("h"), R = num("R"), Dh = num("Dh"), tc = num("tc"), Rc = num("Rc"), w = num("w");
+      const sh = score.shackle;
+      if (!(t > 0 && h > 0 && R > 0 && Dh > 0) || !sh) { document.getElementById("side").innerHTML = ""; return; }
+      const d = sh.B, A = sh.A, cheeks = tc > 0, stack = t + 2 * Math.max(tc, 0);
+      const top = h + Math.max(R, cheeks && Rc > 0 ? Rc : 0);
+      const PL = 14, PR = 150, PT = 40, PB = 12;
+      const minX = -A / 2 - 0.15, maxX = A / 2 + 0.15, minY = -0.55, maxY = top + 1.15;
+      const S = Math.min((420 - PL - PR) / (maxX - minX), (400 - PT - PB) / (maxY - minY));
+      const W = (maxX - minX) * S + PL + PR, Ht = (maxY - minY) * S + PT + PB;
+      const X = x => (x - minX) * S + PL, Y = y => (maxY - y) * S + PT;
+      const ink = id => mark === id ? "#1e3a5f" : "#5f584c";
+      const y0 = cheeks ? Math.max(0, h - Rc) : 0;
+      const cheekH = cheeks ? (h + (Rc > 0 ? Rc : 0) - y0) : 0;
+      const tText = cheeks ? `t ${fmt(t, 3)} + 2×${fmt(tc, 3)}` : `t ${fmt(t, 3)}`;
+      document.getElementById("side").innerHTML = `<svg viewBox="0 0 ${W} ${Ht}">
+        <rect x="${X(minX + 0.15)}" y="${Y(0)}" width="${(maxX - minX - 0.3) * S}" height="${0.35 * S}" fill="#e7e0d2"/>
+        ${cheeks ? `<rect x="${X(-t / 2 - tc)}" y="${Y(h + (Rc > 0 ? Rc : 0))}" width="${tc * S}" height="${cheekH * S}" fill="#e7eef6" stroke="${ink("tc")}"/>
+        <rect x="${X(t / 2)}" y="${Y(h + (Rc > 0 ? Rc : 0))}" width="${tc * S}" height="${cheekH * S}" fill="#e7eef6" stroke="${ink("tc")}"/>` : ""}
+        <rect x="${X(-t / 2)}" y="${Y(h + R)}" width="${t * S}" height="${(h + R) * S}" fill="#f3ecdf" stroke="${ink("t")}" stroke-width="1.6"/>
+        <rect x="${X(-stack / 2)}" y="${Y(h + Dh / 2)}" width="${stack * S}" height="${Dh * S}" fill="white"/>
+        <rect x="${X(-stack / 2)}" y="${Y(h + d / 2)}" width="${stack * S}" height="${d * S}" fill="#d9d0c1" stroke="${ink("pin")}"/>
+        <line x1="${X(-A / 2)}" y1="${Y(top + 1.0)}" x2="${X(A / 2)}" y2="${Y(top + 1.0)}" stroke="${ink("A")}"/>
+        ${lbl(`jaw A ${fmt(A, 3)}`, X(0), Y(top + 1.0), { fill: ink("A"), size: 13, pref: "n,ne,nw" })}
+        <line x1="${X(0)}" y1="${Y(h)}" x2="${X(0)}" y2="${Y(top + 0.35)}" stroke="#8d2e2e" stroke-width="2"/>
+        <circle cx="${X(0)}" cy="${Y(top + 0.5)}" r="9" fill="none" stroke="#8d2e2e" stroke-width="1.6"/>
+        ${lbl("ML", X(0) + 9, Y(top + 0.5), { fill: "#8d2e2e", size: 13, pref: "e,ne,se" })}
+        ${lbl(tText, X(t / 2), Y(h + R), { fill: ink("t"), size: 13, pref: "ne,e,se,n" })}
+        ${cheeks && w > 0 ? lbl(`w ${fmt(w, 3)}`, X(t / 2 + tc), Y(y0), { fill: ink("w"), size: 13, bold: false, pref: "se,e,s,ne" }) : ""}
+      </svg>`;
+      placeLabels(document.querySelector("#side svg"));
+    }
+
+    function postSketch() {
+      const host = document.getElementById("post");
+      const theta = num("theta");
+      const beta = Number(score.beta);
+      const tilt = Number(score.tilt);
+      const delta = Number(score.delta);
+      const W = 420, H = 280;
+      // Isometric-ish corner of the top perimeter beam.
+      const ox = 150, oy = 175;
+      const ix = 54, iy = -28, jx = 70, jz = -62;
+      const to = (u, v, w) => [ox + u * ix + v * jx, oy + u * iy + w * jz];
+      const line = (a, b, color = "#5f584c", width = 1.4) => {
+        const [x1, y1] = to(...a), [x2, y2] = to(...b);
+        return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${width}"/>`;
+      };
+      const poly = (pts, fill, stroke = "#1c1915") => {
+        const s = pts.map(p => to(...p).join(",")).join(" ");
+        return `<polygon points="${s}" fill="${fill}" stroke="${stroke}" stroke-width="1.2"/>`;
+      };
+      // Beam corner: outer faces along +x (length) and +y (width), top at z=0.
+      const beam = [
+        poly([[0, 0, 0], [1.4, 0, 0], [1.4, 0, -0.55], [0, 0, -0.55]], "#e7e0d2"),
+        poly([[0, 0, 0], [0, 1.2, 0], [0, 1.2, -0.55], [0, 0, -0.55]], "#d9d0c1"),
+        poly([[0, 0, 0], [1.4, 0, 0], [1.4, 1.2, 0], [0, 1.2, 0]], "#f3ecdf"),
+        line([0, 0, 0], [1.6, 0, 0], "#1e3a5f", 1.6),
+        line([0, 0, 0], [0, 1.4, 0], "#1e3a5f", 1.6),
+        line([0, 0, 0], [0, 0, 1.1], "#1e3a5f", 1.6),
+      ].join("");
+      const [zx, zy] = to(0, 0, 0);
+      const [xx] = to(1.7, 0, 0);
+      const [, yy] = to(0, 1.5, 0);
+      const [, zz] = to(0, 0, 1.2);
+      const axes = `
+        ${lbl("X length", xx, zy, { fill: "#1e3a5f", size: 14, pref: "e,se,ne" })}
+        ${lbl("Y → ML", zx, yy, { fill: "#1e3a5f", size: 14, pref: "sw,w,s,nw" })}
+        ${lbl("Z up", zx, zz, { fill: "#1e3a5f", size: 14, pref: "ne,n,e,nw" })}
+        ${lbl("Top perimeter beam corner", 12, 22, { x: 12, y: 22, fixed: true, fill: "#5f584c", size: 14, bold: false })}`;
+
+      // Sling and ML both lie in the plane X = holeU, so the sling stays in the plate plane.
+      const slingToMl = (holeU, holeV, holeW) => {
+        const [hx, hy] = to(holeU, holeV, holeW);
+        const slingAng = (Number.isFinite(theta) ? theta : 60) * Math.PI / 180;
+        const reach = 1.0, toMl = 1.7;
+        const at = s => to(holeU, holeV + Math.cos(slingAng) * s, holeW + Math.sin(slingAng) * s);
+        const [sx, sy] = at(reach);
+        const [mlx, mly] = at(toMl);
+        const mlV = holeV + Math.cos(slingAng) * toMl;
+        const mlW = holeW + Math.sin(slingAng) * toMl;
+        let ring = "";
+        const ringR = 0.16;
+        for (let i = 0; i < 18; i++) {
+          const a0 = (i / 18) * Math.PI * 2;
+          const a1 = ((i + 1) / 18) * Math.PI * 2;
+          const p0 = to(holeU, mlV + Math.cos(a0) * ringR, mlW + Math.sin(a0) * ringR);
+          const p1 = to(holeU, mlV + Math.cos(a1) * ringR, mlW + Math.sin(a1) * ringR);
+          ring += `<line x1="${p0[0]}" y1="${p0[1]}" x2="${p1[0]}" y2="${p1[1]}" stroke="#8d2e2e" stroke-width="1.6"/>`;
+        }
+        return `<line x1="${hx}" y1="${hy}" x2="${sx}" y2="${sy}" stroke="#8d2e2e" stroke-width="2.2"/>
+          <line x1="${sx}" y1="${sy}" x2="${mlx}" y2="${mly}" stroke="#8d2e2e" stroke-width="1.2" stroke-dasharray="4 3"/>
+          ${lbl("RSL", (hx + sx) / 2, (hy + sy) / 2, { fill: "#8d2e2e", size: 14, pref: "e,se,ne,s,n" })}
+          ${ring}
+          ${lbl("ML", mlx - 0.16 * 70, mly - 0.16 * 62, { ax1: mlx + 0.16 * 70, ay1: mly + 0.16 * 62, fill: "#8d2e2e", size: 14, pref: "e,ne,se,n,s" })}
+          ${lbl("centre of lift", mlx - 0.16 * 70, mly - 0.16 * 62, { ax1: mlx + 0.16 * 70, ay1: mly + 0.16 * 62, fill: "#5f584c", size: 13, bold: false, pref: "e,se,ne,s,n" })}`;
+      };
+
+      let plate = "";
+      let caption = "";
+      if (inputs.orient === "horizontal") {
+        // Inside face toward centre (+Y). Plate plane is YZ, so it contains the ML.
+        plate = [
+          poly([[0.25, 0.02, 0.05], [0.25, 0.02, 0.95], [0.25, 0.7, 0.95], [0.25, 0.7, 0.05]], "#cfe0f5", "#1e3a5f"),
+          poly([[0.32, 0.02, 0.05], [0.32, 0.02, 0.95], [0.32, 0.7, 0.95], [0.32, 0.7, 0.05]], "#b7d0ec", "#1e3a5f"),
+          slingToMl(0.285, 0.38, 0.62),
+        ].join("");
+        caption = `Horizontal: welded to the inside face, toward the centre. The plate plane is YZ, so it runs through the ML. Sling ${fmtDeg(theta)}° from horizontal. N is the horizontal part of RSL.`;
+      } else if (inputs.orient === "laid") {
+        const ang = (Number.isFinite(tilt) ? tilt : 30) * Math.PI / 180;
+        // On top, tilted in the YZ plane toward the ML.
+        const tipY = 0.08 + Math.sin(ang) * 0.9;
+        const tipZ = Math.cos(ang) * 0.9;
+        plate = [
+          poly([[0.28, 0.05, 0.02], [0.42, 0.05, 0.02], [0.42, tipY, tipZ], [0.28, tipY, tipZ]], "#cfe0f5", "#1e3a5f"),
+          slingToMl(0.35, tipY * 0.45, tipZ * 0.45),
+        ].join("");
+        caption = `Laid over: on top of the beam, tilted ${fmtDeg(tilt)}° from vertical in the plane toward the ML. Leg angle ${fmtDeg(beta)}°. Delta ${fmtDeg(delta)}° out of the plate plane.`;
+      } else {
+        // Vertical on top: plate stands on the top face with its plane through the ML (YZ).
+        // Earlier drawing put the plate in XZ, which looked perpendicular to the ML.
+        plate = [
+          poly([[0.28, 0.08, 0.02], [0.28, 0.72, 0.02], [0.28, 0.72, 0.95], [0.28, 0.08, 0.95]], "#cfe0f5", "#1e3a5f"),
+          poly([[0.40, 0.08, 0.02], [0.40, 0.72, 0.02], [0.40, 0.72, 0.95], [0.40, 0.08, 0.95]], "#b7d0ec", "#1e3a5f"),
+          poly([[0.28, 0.08, 0.02], [0.40, 0.08, 0.02], [0.40, 0.72, 0.02], [0.28, 0.72, 0.02]], "#9eb8d6", "#1e3a5f"),
+          slingToMl(0.34, 0.42, 0.62),
+        ].join("");
+        caption = `Vertical: on top of the perimeter beam. The plate plane faces the ML (through the centre of lift). Sling ${fmtDeg(theta)}° from horizontal. N lifts off the beam.`;
+      }
+
+      const forceNote = Number.isFinite(Number(score.P_kip))
+        ? `RSL ${fmt(score.rsl, 3)} lb = ${fmt(score.P_kip, 3)} kip. N ${fmt(score.N_kip, 3)} kip, V ${fmt(score.V_kip, 3)} kip, Fop ${fmt(score.Fop_kip, 3)} kip.`
+        : "";
+
+      host.innerHTML = `<svg viewBox="0 0 ${W} ${H}">${beam}${plate}${axes}</svg>
+        <p class="note">${caption}</p>
+        <p class="note">Y is the plan direction from this pad eye to the ML. Turn the plate in plan so its face lines up with the sling. On a 4-leg lift that is the diagonal toward the centre of lift, not the beam edge.</p>
+        <p class="note">${forceNote}</p>`;
+      placeLabels(host.querySelector("svg"));
+    }
+
+    function bow() {
+      const host = document.getElementById("bow");
+      const sh = score.shackle, rope = score.rope;
+      if (!sh || !rope || score.gap === null || score.gap === undefined) { host.innerHTML = score.block ? `<p>${score.block}</p>` : ""; return; }
+      const R = Math.max(num("R"), num("tc") > 0 ? num("Rc") : 0);
+      const shift = (num("Dh") - sh.B) / 2;
+      const items = [["R", R, "R"], ["Dh", Math.max(shift, 0), "(Dh−d)/2"], ["rope", rope.H, "H"], ["rope", rope.dia, "rope"], ["C", Math.max(score.gap, 0), "gap"]];
+      const available = sh.C + sh.B / 2;
+      const sum = items.reduce((s, item) => s + item[1], 0);
+      const scale = 520 / Math.max(available, sum, 0.1);
+      const top = 50;
+      let x = 0;
+      const bars = items.map(([id, value, label]) => {
+        const w = value * scale;
+        const on = mark === id;
+        const bar = `<rect x="${x}" y="${top}" width="${Math.max(w, 0)}" height="26" fill="${on ? "#1e3a5f" : "#f3ecdf"}" stroke="#d8cdb8"/>` +
+          (w > 42 ? lbl(`${label} ${fmt(value, 3)}`, x, top, { ax1: x + w, ay1: top + 26, fill: on ? "white" : "#1c1915", size: 11, bold: false, pref: "c,s,sw,se" }) : "");
+        x += w;
+        return bar;
+      }).join("");
+      const note = score.gap < 0
+        ? [`The plate, thimble, and rope overrun the bow by ${fmt(-score.gap, 3)} in.`]
+        : [`Clear space between the rope and the pad eye radius: ${fmt(score.gap, 3)} in.`, `The minimum is ${fmt(score.tolEff, 3)} in.`];
+      const noteSvg = note.map((line, i) => lbl(line, 0, 16 + i * 17, { x: 2, y: 16 + i * 17, fixed: true, fill: "#5f584c", size: 13, bold: false })).join("");
+      host.innerHTML = `<svg viewBox="0 0 560 116">${noteSvg}${bars}${lbl(`Rmin ${fmt(score.rMin, 3)} in. Rmax ${fmt(score.rMax, 3)} in.`, 0, 110, { x: 2, y: 110, fixed: true, fill: "#5f584c", size: 12, bold: false })}</svg>`;
+      placeLabels(host.querySelector("svg"));
+    }
+
+    function tables() {
+      const checks = document.getElementById("checks");
+      const fits = document.getElementById("fits");
+      checks.innerHTML = `<tr><th>Check</th><th>What the file reports</th><th>Result</th><th>Limit</th><th>Utilisation</th></tr>` +
+        (score.rows || []).map(row => `<tr class="${row.ok ? "" : "bad"}"><td>${row.name}</td><td class="eq">${row.info || ""}</td><td class="num">${fmt(row.value, 3)}</td><td class="num">${fmt(row.limit, 3)}</td><td class="num">${fmt(row.util, 3)}</td></tr>`).join("");
+      fits.innerHTML = `<tr><th>Fit</th><th>What was compared</th><th>Result</th></tr>` +
+        (score.fits || []).map(row => `<tr class="${row.ok ? "" : "bad"}"><td>${row.name}</td><td>${row.text}</td><td>${row.ok ? "Pass" : "Fail"}</td></tr>`).join("");
+      const pass = score.pass === true;
+      document.getElementById("stats").innerHTML = score.block
+        ? `<div class="stat"><b class="fail">Not scored</b><span>${score.block}</span></div>`
+        : `<div class="stat"><b class="${pass ? "pass" : "fail"}">${pass ? "Pass" : "Fail"}</b><span>Plate and fits</span></div>
+           <div class="stat"><b>${fmt(score.governingU, 3)}</b><span>${score.governing || ""}</span></div>
+           <div class="stat"><b>${fmt(score.rsl, 3)}</b><span>Design load RSL, lb</span></div>`;
+      document.getElementById("help").textContent = HELP[mark] || "";
+    }
+
+    function highlight() {
+      document.querySelectorAll("[data-mark]").forEach(el => el.classList.toggle("on", el.dataset.mark === mark));
+      const sh = score.shackle || {};
+      const jaw = document.getElementById("jawA");
+      const pin = document.getElementById("pinD");
+      const len = document.getElementById("lenC");
+      if (jaw) jaw.textContent = `${fmt(sh.A, 3)} in`;
+      if (pin) pin.textContent = `${fmt(sh.B, 3)} in`;
+      if (len) len.textContent = `${fmt(sh.C, 3)} in`;
+    }
+    function paintViews() { highlight(); front(); side(); postSketch(); bow(); tables(); }
+
+    function commit() {
+      score = PadEye.score(inputs);
+      paintViews();
+    }
+
+    document.getElementById("form").addEventListener("click", (event) => {
+      const row = event.target.closest("[data-mark]");
+      if (!row) return;
+      mark = row.dataset.mark;
+      paintViews();
+    });
+    document.getElementById("designOut").addEventListener("click", (event) => {
+      const row = event.target.closest("[data-mark]");
+      if (!row) return;
+      mark = row.dataset.mark;
+      paintViews();
+    });
+    document.getElementById("modebar").addEventListener("click", (event) => {
+      const b = event.target.closest("[data-mode]");
+      if (b) setMode(b.dataset.mode);
+    });
+    document.getElementById("form").addEventListener("input", (event) => {
+      const dkey = event.target.dataset.dkey;
+      if (dkey) {
+        dz[dkey] = event.target.value;
+        mark = dkey;
+        refreshAll(dkey === "stage" || dkey === "single");
+        return;
+      }
+      const key = event.target.dataset.key;
+      if (!key) return;
+      inputs[key] = event.target.value;
+      mark = key;
+      if (key === "orient") drawForm();
+      commit();
+    });
+    document.getElementById("print").onclick = () => window.print();
+
+    function start() {
+      catalog = PadEye.catalog();
+      inputs = PadEye.blankSheet();
+      document.getElementById("asset").textContent = "DNV-ST-E271 [4.2.4.1], [4.4.1]. Opens from the file. No server is required to calculate.";
+      checkInputs = Object.assign({}, inputs);
+      refreshAll(true);
+    }
+    start();
+  </script>
+</body>
+</html>

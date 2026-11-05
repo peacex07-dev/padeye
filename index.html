@@ -35,6 +35,15 @@
     td.eq { color: var(--blue); }
     tr.bad td:first-child { color: var(--bad); }
     .note { font-size: 9pt; color: var(--muted); }
+    #form { margin-top: 6px; }
+    #form h2 { margin: 8px 0 4px; font-size: 11pt; }
+    .fgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(370px, 1fr)); gap: 2px 14px; }
+    #form label.row, #form .read { grid-template-columns: 36px minmax(0, 1fr) 140px 26px; padding: 2px 4px; }
+    #form select { font-size: 9pt; }
+    #form label.row > span:nth-child(2) { font-size: 10pt; line-height: 1.15; }
+    #form label.row[data-mark="stage"], #form label.row[data-mark="single"], #form label.row[data-mark="orient"], #form label.row[data-mark="shackle"], #form label.row[data-mark="stdshackle"] { grid-column: span 2; grid-template-columns: 36px minmax(0, 150px) minmax(0, 1fr) 26px; }
+    #form .read { grid-template-columns: 34px minmax(0, 1fr) auto; }
+    #form .note { margin: 4px 0 0; }
     .modebar { display: flex; gap: 0; margin: 12px 0 0; }
     .modebar button { flex: 0 0 auto; background: #F2F2F2; border-color: #bfbfbf; }
     .modebar button.on { background: var(--blue); color: #fff; border-color: var(--blue); }
@@ -66,10 +75,10 @@
   </header>
   <main>
     <div class="modebar noprint" id="modebar"></div>
+    <section id="form"></section>
     <div class="stats" id="stats"></div>
     <div id="designOut"></div>
-    <div class="layout">
-      <section id="form"></section>
+    <div>
       <section id="views">
         <div class="panel">
           <h2>Front view, looking at the plate</h2>
@@ -258,10 +267,10 @@
     function drawDesignForm() {
       const single = dz.single === "1";
       const stageOpts = Object.entries(STAGES).map(([k, s]) => [k, s.label]);
-      const shOpts = [["auto", "Auto: smallest that works"]].concat(catalog.shackles.map(s => [s.value, s.value + (s.approved ? "" : " — product certificate")]));
-      const ropeOpts = [["auto", "Auto: smallest that carries the leg"]].concat(catalog.ropes.map(r => [r, r]));
+      const shOpts = [["auto", "Auto"]].concat(catalog.shackles.map(s => [s.value, s.value + (s.approved ? "" : " — product certificate")]));
+      const ropeOpts = [["auto", "Auto"]].concat(catalog.ropes.map(r => [r, r]));
       document.getElementById("form").innerHTML = `
-        <h2>Lift</h2>
+        <h2>Lift</h2><div class="fgrid">
         ${dselect("stage", "—", "Stage", stageOpts, dz.stage)}
         ${dselect("single", "—", "Lifting set", [["0", "Full set from the stage"], ["1", "One pad eye, single leg"]], dz.single)}
         ${dfield("mgw", "Rg", "Rating, maximum gross weight", "lb")}
@@ -269,11 +278,13 @@
         ${dfield("k", "k", "Asymmetry factor", "—")}
         ${dfield("re", "Re", "Plate yield", "ksi")}
         ${dz.stage === "5" && !single ? dfield("tilt", "tilt", "Laid-over tilt from vertical (blank = auto)", "deg", "auto") : dfield("oop", "φ", "Out of plane angle", "deg")}
-        <h2>Shackle and rope</h2>
+        </div>
+        <h2>Shackle and rope</h2><div class="fgrid">
         ${dselect("stdshackle", "—", "Shackle", shOpts, dz.shackle).replace('data-dkey="stdshackle"', 'data-dkey="shackle"')}
         ${dselect("stdrope", "rope", "Wire rope", ropeOpts, dz.rope).replace('data-dkey="stdrope"', 'data-dkey="rope"')}
         ${dfield("tol", "tol", "Entered bow-gap tolerance", "in")}
         ${dselect("fore", "—", "Forerunner", [["0", "Not needed"], ["1", "Add a forerunner"]], dz.fore)}
+        </div>
         <p class="note">The plate, hole, thickness and radius are picked for you. They show below. Switch to Check to type your own plate.</p>`;
     }
 
@@ -399,22 +410,24 @@
         .map(([v, label]) => `<option value="${v}"${inputs.orient === v ? " selected" : ""}>${label}</option>`).join("");
       const sh = score.shackle || {};
       document.getElementById("form").innerHTML = `
-        <h2>Load</h2>
+        <h2>Load</h2><div class="fgrid">
         ${groups.Load[0]}
         <label class="row${mark === "n" ? " on" : ""}" data-mark="n"><span class="sym">n</span><span>Number of pad eyes</span><select data-key="n">${nSel}</select><span></span></label>
         ${groups.Load.slice(1, 4).join("")}
         <label class="row${mark === "orient" ? " on" : ""}" data-mark="orient"><span class="sym">—</span><span>Where the plate sits</span><select data-key="orient">${oSel}</select><span></span></label>
         ${inputs.orient === "laid" ? "" : field("oop", "φ", "Out of plane angle", "deg")}
         ${groups.Load[4]}
-        <h2>Shackle and rope</h2>
+        </div>
+        <h2>Shackle and rope</h2><div class="fgrid">
         <label class="row${mark === "shackle" ? " on" : ""}" data-mark="shackle"><span class="sym">—</span><span>Shackle</span><select data-key="shackle">${shOpts}</select><span></span></label>
         <label class="row${mark === "rope" ? " on" : ""}" data-mark="rope"><span class="sym">rope</span><span>Wire rope</span><select data-key="rope">${ropes}</select><span></span></label>
         ${groups.Shackle.join("")}
         <div class="read${mark === "A" ? " on" : ""}" data-mark="A"><span class="sym">A</span><span>Jaw width</span><b id="jawA">${fmt(sh.A, 3)} in</b></div>
         <div class="read${mark === "pin" ? " on" : ""}" data-mark="pin"><span class="sym">d</span><span>Pin diameter</span><b id="pinD">${fmt(sh.B, 3)} in</b></div>
         <div class="read${mark === "C" ? " on" : ""}" data-mark="C"><span class="sym">C</span><span>Inside length</span><b id="lenC">${fmt(sh.C, 3)} in</b></div>
-        <h2>Plate you are trying</h2>
-        ${groups.Plate.join("")}`;
+        </div>
+        <h2>Plate you are trying</h2><div class="fgrid">
+        ${groups.Plate.join("")}</div>`;
     }
 
     function outline(b, h, R) {

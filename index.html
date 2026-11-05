@@ -239,6 +239,56 @@
       #views #side svg, #views #post svg, #views .panel.bowp svg { max-height: none; }
     }
     @media (min-width: 1260px) { main { grid-template-columns: minmax(820px, 1.6fr) minmax(0, 1fr); } }
+
+    /* ---------- design-process table: narrow, packed left; figures next to it ---------- */
+    #form label.row, #form label.row:has(> .sym:empty), #form label.row:has(> select), #form .read, #form .colhead {
+      grid-template-columns: 40px 200px 136px 164px 108px 30px 40px; grid-template-areas: "sym lab req rec inp unit st"; column-gap: 6px; }
+    #form .req { grid-area: req; font-size: 11px; color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #form .stat2 { grid-area: st; font-size: 11px; font-weight: 700; text-align: center; }
+    #form .rec { grid-area: rec; }
+    #form .read > b { grid-area: inp; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
+    #form .read > .unit { grid-area: unit; }
+    #form .read > b:nth-child(3) { grid-area: inp; }
+    #form label.row > input { width: 100%; }
+    #form label.row > select { width: 100%; text-overflow: ellipsis; }
+    #form .fgrid > label.row[data-mark="stage"] { grid-template-areas: "sym lab inp inp inp inp st"; }
+    #form .fgrid > label.row[data-mark="stage"] > .rec, #form .fgrid > label.row[data-mark="stage"] > .req, #form .read[data-mark="ml"] > .rec { display: none; }
+    #form .read[data-mark="ml"] { grid-template-areas: "sym lab req inp inp unit st"; }
+    #form .fgrid > label.row[data-mark="shackle"], #form .fgrid > label.row[data-mark="rope"] { grid-template-areas: "sym lab req rec inp inp st"; }
+    #form .colhead > :nth-child(3) { grid-area: req; } #form .colhead > :nth-child(4) { grid-area: rec; } #form .colhead > :nth-child(5) { grid-area: inp; }
+    #form .colhead > :nth-child(6) { grid-area: unit; } #form .colhead > :nth-child(7) { grid-area: st; text-align: center; }
+    #form .colhead > * { text-align: left; }
+    #form h2[data-sec] { display: flex; justify-content: space-between; }
+    #form .hstat { font-size: 11px; padding-right: 4px; }
+    #form, #stats, #designOut, #eqs { width: 816px; max-width: 100%; }
+    .panel.shk svg { width: 100%; max-height: 230px; }
+    .shksvg .dl { stroke: #333; stroke-width: 1; } .shksvg .dt { font-size: 12px; font-weight: 700; fill: #1f3864; }
+    @media (min-width: 1100px) and (max-width: 1319px) {
+      main { display: flex; flex-direction: column; }
+      main > div:has(> #views) { position: static; max-height: none; overflow: visible; }
+    }
+    @media (min-width: 1320px) {
+      header, main { width: auto; margin-left: 14px; margin-right: 14px; }
+      main { display: grid; grid-template-columns: 816px 430px; justify-content: start; column-gap: 18px; }
+      #views .drawings { grid-template-columns: 1fr; }
+      #views .drawings > .panel { grid-column: 1; }
+      #views .panel.front svg { max-height: 300px; }
+      #views #side svg, #views #post svg { max-height: 200px; }
+      #views .panel.bowp svg { max-height: 110px; }
+    }
+    @media (max-width: 860px) {
+      #form, #stats, #designOut, #eqs { width: auto; }
+      #form label.row, #form label.row:has(> .sym:empty), #form label.row:has(> select), #form .read, #form label.row[data-mark] {
+        grid-template-columns: 30px minmax(0, 1fr) 160px 34px; grid-template-areas: "sym lab lab st" ". req req req" ". rec rec rec" ". inp inp unit"; row-gap: 2px; }
+      #form .read[data-mark="ml"], #form .fgrid > label.row[data-mark="stage"], #form .fgrid > label.row[data-mark="shackle"], #form .fgrid > label.row[data-mark="rope"] { grid-template-areas: "sym lab lab st" ". req req req" ". rec rec rec" ". inp inp unit"; }
+      #form .rec:not(:empty)::before { content: "Recommended "; font-weight: 400; }
+      #form .req:not(:empty)::before { content: "Requirement "; }
+      #form .req:empty, #form .rec:empty { display: none; }
+      #form .colhead { display: none; }
+    }
+    @media (min-width: 861px) {
+      #form .fgrid > label.row:has(> select[data-key]) { grid-template-areas: "sym lab inp inp inp inp st"; }
+    }
   </style>
 </head>
 <body>
@@ -257,6 +307,7 @@
     <div>
       <section id="views">
         <div class="drawings">
+          <div class="panel shk"><h2 id="shkTitle">Shackle</h2><div id="shk"></div></div>
           <div class="panel front">
             <h2>Front view, looking at the plate</h2>
             <div id="front"></div>
@@ -333,10 +384,10 @@
     const FIELDS = [
       ["Load", "mgw", "", "Max gross weight", "lb"],
       ["Load", "theta", "θ", "Sling angle from horizontal", "deg"],
-      ["Load", "k", "k", "Uneven-load factor (1 = even)", ""],
+      ["Load", "k", "k", "Uneven load factor", ""],
       ["Load", "re", "Re", "Plate yield strength", "ksi"],
       ["Load", "tilt", "", "Plate tilt from vertical", "deg"],
-      ["Shackle", "tol", "", "Extra bow-gap allowance", "in"],
+      ["Shackle", "tol", "", "Extra bow gap allowance", "in"],
       ["Plate", "t", "t", "Main plate thickness", "in"],
       ["Plate", "R", "R", "Main plate radius", "in"],
       ["Plate", "Dh", "Dh", "Hole diameter", "in"],
@@ -487,30 +538,82 @@
       const stageOpts = Object.entries(STAGES).map(([k, s]) => [k, s.label]);
       const shOpts = [["auto", "Auto-pick"]].concat(catalog.shackles.map(s => [s.value, s.value + (s.approved ? "" : " (needs certificate)")]));
       const ropeOpts = [["auto", "Auto-pick"]].concat(catalog.ropes.map(r => [r, r]));
+      const H = (sec, t) => `<h2 data-sec="${sec}">${t}<span class="hstat" data-hstat="${sec}"></span></h2>`;
       document.getElementById("form").innerHTML = `
-        <div class="colhead"><span></span><span></span><span>Recommended</span><span>Input</span><span>Unit</span></div>
-        <h2>Shackle</h2><div class="fgrid">
-        ${dselect("stdshackle", "", "Shackle", shOpts, dz.shackle).replace('data-dkey="stdshackle"', 'data-dkey="shackle"').replace('data-rec="stdshackle"', 'data-rec="shackle"')}
-        <div class="read" data-mark="jawA"><span class="sym">A</span><span>Jaw width</span><span class="unit">in</span><span class="rec" data-rec="jawA"></span></div>
-        </div>
-        <h2>Lift</h2><div class="fgrid">
+        <div class="colhead"><span></span><span>Parameter</span><span>Requirement</span><span>Recommended</span><span>Input</span><span>Unit</span><span>Status</span></div>
+        ${H("load", "Load")}<div class="fgrid">
         ${dselect("stage", "", "Lift type", stageOpts, dz.stage)}
-        ${dfield("mgw", "", "Max gross weight", "lb")}
+        ${dfield("mgw", "R", "Max gross weight", "lb")}
         ${dfield("theta", "θ", "Sling angle from horizontal", "deg")}
-        ${dfield("k", "k", "Uneven-load factor (1 = even)", "")}
-        ${dfield("re", "Re", "Plate yield strength", "ksi")}
-        ${dfield("tset", "t", "Plate thickness (blank = auto)", "in", "auto")}
-        ${dfield("bset", "b", "Base length (blank = auto)", "in", "auto")}
-        ${dselect("cheek", "", "Cheek plates", [["0", "None"], ["1", "Include"]], dz.cheek)}
-        ${dz.cheek === "1" ? dfield("tc", "tc", "Cheek thickness, each side", "in") + dfield("Rc", "Rc", "Cheek radius", "in") + dfield("w", "w", "Cheek weld leg", "in") : ""}
-        ${dz.stage === "5" ? dfield("tilt", "", "Plate tilt from vertical (blank = auto)", "deg", "auto") : dfield("oop", "φ", "Sling angle out of plate plane", "deg")}
+        ${dfield("k", "k", "Uneven load factor", "")}
         </div>
-        <h2>Rope</h2><div class="fgrid">
-        ${dselect("stdrope", "", "Wire rope size", ropeOpts, dz.rope).replace('data-dkey="stdrope"', 'data-dkey="rope"').replace('data-rec="stdrope"', 'data-rec="rope"')}
-        ${dfield("tol", "", "Extra bow-gap allowance", "in")}
+        ${H("req", "Required")}<div class="fgrid">
+        ${dread("wllmin", "WLLmin", "Min WLL lifting set", "t")}
+        ${dread("wlls", "WLLs", "Required WLL per leg", "t")}
+        </div>
+        ${H("set", "Lifting set")}<div class="fgrid">
+        ${dselect("stdrope", "", "Wire rope size", ropeOpts, dz.rope).replace('data-dkey="stdrope"', 'data-dkey="rope"').replace('data-rec="stdrope"', 'data-rec="rope"').replace('data-mark="stdrope"', 'data-mark="rope"')}
+        ${dread("ml", "", "Master link", "")}
         ${dselect("fore", "", "Forerunner", [["0", "None"], ["1", "Add forerunner"]], dz.fore)}
+        ${dfield("tol", "", "Extra bow gap allowance", "in")}
+        </div>
+        ${H("shk", "Shackle")}<div class="fgrid">
+        ${dselect("stdshackle", "", "Shackle", shOpts, dz.shackle).replace('data-dkey="stdshackle"', 'data-dkey="shackle"').replace('data-rec="stdshackle"', 'data-rec="shackle"').replace('data-mark="stdshackle"', 'data-mark="shackle"')}
+        ${dread("jawA", "A", "Jaw width", "in")}
+        ${dread("pinB", "B", "Pin diameter", "in")}
+        </div>
+        ${H("plate", "Plate")}<div class="fgrid">
+        ${dfield("re", "Re", "Plate yield strength", "ksi")}
+        ${dfield("tset", "t", "Plate thickness", "in", "auto")}
+        ${dfield("bset", "b", "Base length", "in", "auto")}
+        ${dz.stage === "5" ? dfield("tilt", "", "Plate tilt from vertical", "deg", "auto") : dfield("oop", "φ", "Out of plane angle", "deg")}
+        ${dselect("cheek", "", "Cheek plates", [["0", "None"], ["1", "Include"]], dz.cheek)}
+        ${dz.cheek === "1" ? dfield("tc", "tc", "Cheek thickness each side", "in") + dfield("Rc", "Rc", "Cheek radius", "in") + dfield("w", "w", "Cheek weld leg", "in") : ""}
         </div>
 `;
+    }
+    function dread(id, symbol, label, unit) {
+      return `<div class="read${mark === id ? " on" : ""}" data-mark="${id}"><span class="sym">${symbol}</span><span>${label}</span><span class="unit">${unit}</span><b data-val="${id}"></b><span class="rec" data-rec="${id}"></span></div>`;
+    }
+    const REQ = { rope: "WLL ≥ WLLs", ml: "WLL ≥ WLLmin", fore: "WLL ≥ WLLmin", tol: "thimble fits bow", shackle: "WLLs < SWL",
+      tset: "0.75A ≤ t ≤ A", tc: "t + 2tc ≤ A", Rc: "Rc ≤ R", wllmin: "Table 8-1", k: "≥ 1" };
+    function paintStatus() {
+      const o = designed, ok = !!(o && o.d), ls = o && o.ls;
+      const st = {}, val = {}, req = Object.assign({}, REQ);
+      const P = (b) => (b ? "PASS" : "FAIL");
+      if (ls) {
+        val.wllmin = fmt(ls.wll_min_t, 3); val.wlls = fmt(ls.wll_req_t, 3);
+        req.wlls = ls.n_legs === 4 ? "WLLmin / (3 cos β)" : ls.n_legs === 2 ? "WLLmin / (2 cos β)" : "WLLmin";
+        if (ls.leg) st.rope = P(ls.leg.util <= 1);
+        if (ls.master_link) { val.ml = `A-1346 stock ${ls.master_link.stock}`; st.ml = P(ls.master_link.util <= 1 && ls.master_link.inside_ok); } else val.ml = "None";
+        if (ls.forerunner) st.fore = P(ls.forerunner.util <= 1);
+      }
+      const fit = (n) => { const f = score && score.fits ? score.fits.find((x) => x.name.startsWith(n)) : null; return f ? P(f.ok) : ""; };
+      if (ok && score) {
+        const sh = score.shackle;
+        if (sh) { val.jawA = fmt(sh.A, 3); val.pinB = fmt(sh.B, 3); }
+        if (ls && ls.shackle) st.shackle = P(ls.shackle.utilisation <= 1);
+        st.tol = fit("Thimble fits shackle bow");
+        const a = fit("Thickness fits shackle jaw"), b = fit("Thickness >= 75");
+        if (a && b) st.tset = P(a === "PASS" && b === "PASS");
+        if (dz.cheek === "1") { st.tc = a; st.Rc = fit("Cheek radius"); }
+      }
+      const f = document.getElementById("form");
+      f.querySelectorAll("[data-val]").forEach((e) => { e.textContent = val[e.dataset.val] ?? ""; });
+      f.querySelectorAll(".fgrid > [data-mark]").forEach((row) => {
+        const id = row.dataset.mark;
+        let q = row.querySelector(":scope > .req"), s2 = row.querySelector(":scope > .stat2");
+        if (!q) { q = document.createElement("span"); q.className = "req"; row.appendChild(q); }
+        if (!s2) { s2 = document.createElement("span"); s2.className = "stat2"; row.appendChild(s2); }
+        q.textContent = req[id] || ""; s2.textContent = st[id] || ""; s2.className = "stat2 " + (st[id] === "PASS" ? "pass" : st[id] === "FAIL" ? "fail" : "");
+      });
+      f.querySelectorAll("h2[data-sec]").forEach((h) => {
+        const g = h.nextElementSibling, vals = [...g.querySelectorAll(".stat2")].map((e) => e.textContent).filter(Boolean);
+        let r = vals.length ? P(vals.every((v) => v === "PASS")) : "";
+        if (h.dataset.sec === "plate" && ok && score && score.pass !== null && score.pass !== undefined) r = P(score.pass && (!vals.length || vals.every((v) => v === "PASS")));
+        if (h.dataset.sec === "load" || h.dataset.sec === "req") r = ls ? "PASS" : "";
+        const e = h.querySelector(".hstat"); e.textContent = r; e.className = "hstat " + (r === "PASS" ? "pass" : r === "FAIL" ? "fail" : "");
+      });
     }
 
     // Recommended column: rerun the same design with only that row's override set back to auto. Display only.
@@ -533,7 +636,6 @@
       const shRow = sp > 0 ? (PadEye.SHACKLES[shName.slice(0, sp)] || {})[shName.slice(sp + 1)] : null;
       if (shRow) {
         const A = shRow.A;
-        recs.jawA = fmt(A, 3);
         recs.tset = `${recs.tset ? recs.tset + " " : ""}(${fmt(0.75 * A, 3)} to ${fmt(A, 3)})`;
         const tNow = String(dz.tset ?? "").trim() !== "" ? dnum("tset") : (designed && designed.d ? designed.d.t : Number(recWith("tset", "", (o) => o.d.t)) || NaN);
         if (dz.cheek === "1" && Number.isFinite(tNow) && tNow > 0) recs.tc = `max ${fmt((A - tNow) / 2, 3)}`;
@@ -659,6 +761,7 @@
         renderDesignOut();
         if (ok) { inputs = designInputs(designed); score = doScore(inputs); paintViews(); }
         else document.getElementById("stats").innerHTML = `<div class="stat"><b class="fail">No design</b><span>Change the inputs</span></div>`;
+        paintStatus();
       } else {
         document.getElementById("views").style.display = "";
         document.getElementById("eqs").style.display = "";
@@ -683,12 +786,6 @@
       const sh = score.shackle || {};
       document.getElementById("form").innerHTML = `
         ${canCopyDesign() ? '<div class="copyrow noprint"><button type="button" id="copyDesign">Copy designed plate</button></div>' : ""}
-        <h2>Shackle</h2><div class="fgrid">
-        <label class="row${mark === "shackle" ? " on" : ""}" data-mark="shackle"><span class="sym"></span><span>Shackle</span><select data-key="shackle">${shOpts}</select><span></span></label>
-        <div class="read${mark === "A" ? " on" : ""}" data-mark="A"><span class="sym">A</span><span>Jaw width</span><b id="jawA">${fmt(sh.A, 3)} in</b></div>
-        <div class="read${mark === "pin" ? " on" : ""}" data-mark="pin"><span class="sym">d</span><span>Pin diameter</span><b id="pinD">${fmt(sh.B, 3)} in</b></div>
-        <div class="read${mark === "C" ? " on" : ""}" data-mark="C"><span class="sym">C</span><span>Inside length</span><b id="lenC">${fmt(sh.C, 3)} in</b></div>
-        </div>
         <h2>Load</h2><div class="fgrid">
         ${groups.Load[0]}
         <label class="row${mark === "n" ? " on" : ""}" data-mark="n"><span class="sym">n</span><span>Pad eyes</span><select data-key="n">${nSel}</select><span></span></label>
@@ -697,9 +794,15 @@
         ${laid || one ? "" : field("oop", "φ", "Out of plane angle", "deg")}
         ${laid ? groups.Load[4] : ""}
         </div>
-        <h2>Rope</h2><div class="fgrid">
+        <h2>Lifting set</h2><div class="fgrid">
         <label class="row${mark === "rope" ? " on" : ""}" data-mark="rope"><span class="sym"></span><span>Wire rope</span><select data-key="rope">${ropes}</select><span></span></label>
         ${groups.Shackle.join("")}
+        </div>
+        <h2>Shackle</h2><div class="fgrid">
+        <label class="row${mark === "shackle" ? " on" : ""}" data-mark="shackle"><span class="sym"></span><span>Shackle</span><select data-key="shackle">${shOpts}</select><span></span></label>
+        <div class="read${mark === "A" ? " on" : ""}" data-mark="A"><span class="sym">A</span><span>Jaw width</span><b id="jawA">${fmt(sh.A, 3)} in</b></div>
+        <div class="read${mark === "pin" ? " on" : ""}" data-mark="pin"><span class="sym">d</span><span>Pin diameter</span><b id="pinD">${fmt(sh.B, 3)} in</b></div>
+        <div class="read${mark === "C" ? " on" : ""}" data-mark="C"><span class="sym">C</span><span>Inside length</span><b id="lenC">${fmt(sh.C, 3)} in</b></div>
         </div>
         <h2>Plate you are trying</h2><div class="fgrid">
         ${groups.Plate.join("")}</div>`;
@@ -1129,7 +1232,37 @@
       if (pin) pin.textContent = `${fmt(sh.B, 3)} in`;
       if (len) len.textContent = `${fmt(sh.C, 3)} in`;
     }
-    function paintViews() { highlight(); front(); side(); postSketch(); bow(); tables(); }
+    function shackleFig() {
+      const name = inputs.shackle || "", sp = name.indexOf(" ");
+      const r = sp > 0 ? (PadEye.SHACKLES[name.slice(0, sp)] || {})[name.slice(sp + 1)] : null;
+      document.getElementById("shkTitle").textContent = r ? `Shackle ${name}` : "Shackle";
+      const host = document.getElementById("shk");
+      if (!r) { host.innerHTML = ""; return; }
+      const { A, B, C, D, E } = r;
+      // schematic, scaled from the table: x across, y down; pin at top
+      const s = 150 / Math.max(C + B + D, E + 2 * D);
+      const cx = 200, wA = A * s, wE = (E || A * 1.6) * s, d = D * s, pb = B * s;
+      const yPin = 30, yEye = yPin + pb / 2, yIn = yEye + C * s;   // C: pin bearing face to inside of bow
+      const rb = wE / 2, yc = yIn - rb;
+      const xl = cx - wA / 2, xr = cx + wA / 2;
+      const inner = `M${xl},${yEye} L${cx - rb},${Math.max(yEye, yc)} A${rb},${rb} 0 0 0 ${cx + rb},${Math.max(yEye, yc)} L${xr},${yEye}`;
+      const ro = rb + d, xlo = xl - d, xro = xr + d;
+      const outer = `M${xlo},${yEye - pb / 2 - 2} L${cx - ro},${Math.max(yEye, yc)} A${ro},${ro} 0 0 0 ${cx + ro},${Math.max(yEye, yc)} L${xro},${yEye - pb / 2 - 2}`;
+      const f = (v) => fmt(v, 2);
+      const dim = (x1, y1, x2, y2, t, tx, ty, anc) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="dl" marker-start="url(#ar)" marker-end="url(#ar)"/><text x="${tx}" y="${ty}" text-anchor="${anc || "middle"}" class="dt">${t}</text>`;
+      const yB = yIn + d + 18;
+      host.innerHTML = `<svg viewBox="0 0 400 ${yB + 22}" class="shksvg"><defs><marker id="ar" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,1 L8,4 L0,7z" fill="#333"/></marker></defs>
+        <path d="${outer}" fill="none" stroke="#333" stroke-width="1.6"/><path d="${inner}" fill="none" stroke="#333" stroke-width="1.6"/>
+        <rect x="${xlo - 14}" y="${yPin - pb / 2}" width="${xro - xlo + 28}" height="${pb}" fill="#d9d9d9" stroke="#333" stroke-width="1.4"/>
+        <circle cx="${xlo - 14}" cy="${yPin}" r="${pb * 0.7}" fill="#d9d9d9" stroke="#333" stroke-width="1.4"/>
+        ${dim(xl, yEye + 14, xr, yEye + 14, `A ${f(A)}`, cx, yEye + 28)}
+        ${dim(xro + 26, yPin - pb / 2, xro + 26, yPin + pb / 2, "", 0, 0)}<text x="${xro + 32}" y="${yPin + 4}" class="dt">B ${f(B)}</text>
+        ${dim(xl - d - 30, yEye, xl - d - 30, yIn, "", 0, 0)}<text x="${xl - d - 36}" y="${(yEye + yIn) / 2 + 4}" text-anchor="end" class="dt">C ${f(C)}</text>
+        ${dim(cx + rb * 0.7, yc + rb * 0.71, cx + ro * 0.7, yc + ro * 0.71, "", 0, 0)}<text x="${cx + ro * 0.7 + 6}" y="${yc + ro * 0.71 + 12}" class="dt">D ${f(D)}</text>
+        ${E ? dim(cx - rb, yc, cx + rb, yc, `E ${f(E)}`, cx, yc - 6) : ""}
+        <text x="${cx}" y="${yB + 12}" text-anchor="middle" class="dt">in</text></svg>`;
+    }
+    function paintViews() { highlight(); shackleFig(); front(); side(); postSketch(); bow(); tables(); }
 
     function commit() {
       score = doScore(inputs);
@@ -1180,7 +1313,7 @@
     /* ---------- Drag to reorder input boxes; order kept in this browser per mode ---------- */
     const LAYOUT_KEY = "padeye.layout.v1";
     const rowKey = (el) => el.dataset.mark || el.textContent.trim();
-    const gridKey = (g) => { const h = g.previousElementSibling; return (h && h.tagName === "H2") ? h.textContent.trim() : "grid"; };
+    const gridKey = (g) => { const h = g.previousElementSibling; return (h && h.tagName === "H2") ? (h.dataset.sec || h.textContent.trim()) : "grid"; };
     function loadLayout() { try { return JSON.parse(localStorage.getItem(LAYOUT_KEY)) || {}; } catch (e) { return {}; } }
     function saveLayout() {
       const all = loadLayout(), cur = {};

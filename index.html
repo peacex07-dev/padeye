@@ -228,7 +228,7 @@
     };
     let mode = "design";
     let checkInputs = null;
-    let dz = { stage: "1", single: "0", mgw: "50000", theta: "45", k: "1", re: "50", oop: "0", tilt: "", shackle: "auto", rope: "auto", tol: "0", fore: "0", bset: "", cheek: "0", tc: "", Rc: "", w: "" };
+    let dz = { stage: "1", single: "0", mgw: "50000", theta: "45", k: "1", re: "50", oop: "0", tilt: "", shackle: "auto", rope: "auto", tol: "0", fore: "0", bset: "", tset: "", cheek: "0", tc: "", Rc: "", w: "" };
     let designed = null;   // { error, ls, d }
     const dnum = (key) => Number(String(dz[key] ?? "").replace(/,/g, "").trim());
 
@@ -279,7 +279,17 @@
         const ori = single ? PadEye.ORIENTATIONS[st.orient === "horizontal" ? 1 : 0]
           : PadEye.ORIENTATIONS[{ vertical: 0, horizontal: 1, laid: 2 }[st.orient]];
         // 2. shackle and plate (04_4-4-1_PadEye.py design_pad_eye)
-        out.d = PadEye.designPadEye(mgw, nPe, theta, k, re, ropeMm, tol, ori, null, null, shackle, st.orient === "laid" && !single ? tilt : null, oop);
+        let tFix = null;
+        if (String(dz.tset ?? "").trim() !== "") {
+          tFix = dnum("tset");
+          if (!(Number.isFinite(tFix) && tFix > 0)) throw new Error("Plate thickness must be a number, or leave it blank for auto.");
+        }
+        try {
+          out.d = PadEye.designPadEye(mgw, nPe, theta, k, re, ropeMm, tol, ori, null, null, shackle, st.orient === "laid" && !single ? tilt : null, oop, tFix);
+        } catch (e) {
+          if (tFix && e instanceof Error && e.message.startsWith("No single-plate")) throw new Error(`Plate thickness ${fmt(tFix, 3)} in fails jaw fit, tear-out or contact`);
+          throw e;
+        }
         // Base length override: blank = auto. Must be at least the auto minimum (b >= 2R and Eq. 4.1).
         if (String(dz.bset ?? "").trim() !== "") {
           const bu = dnum("bset");
@@ -346,6 +356,7 @@
         ${dfield("theta", "θ", "Sling angle from horizontal", "deg")}
         ${dfield("k", "k", "Uneven-load factor (1 = even)", "")}
         ${dfield("re", "Re", "Plate yield strength", "ksi")}
+        ${dfield("tset", "t", "Plate thickness (blank = auto)", "in", "auto")}
         ${dfield("bset", "b", "Base length (blank = auto)", "in", "auto")}
         ${dselect("cheek", "", "Cheek plates", [["0", "None"], ["1", "Include"]], dz.cheek)}
         ${dz.cheek === "1" ? dfield("tc", "tc", "Cheek thickness, each side", "in") + dfield("Rc", "Rc", "Cheek radius", "in") + dfield("w", "w", "Cheek weld leg", "in") : ""}

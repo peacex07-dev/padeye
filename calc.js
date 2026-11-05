@@ -466,7 +466,7 @@
     };
   }
 
-  function designPadEye(mgwLb, nPe, angleHDeg, kAsym, ReKsi, ropeMm, tolIn, orientation, step, DhBore, shackle, tiltDeg, outOfPlaneDeg) {
+  function designPadEye(mgwLb, nPe, angleHDeg, kAsym, ReKsi, ropeMm, tolIn, orientation, step, DhBore, shackle, tiltDeg, outOfPlaneDeg, tFixed) {
     if (step === undefined || step === null) step = DESIGN_STEP_IN;
     if (tiltDeg === undefined) tiltDeg = null;
     if (outOfPlaneDeg === undefined) outOfPlaneDeg = 0.0;
@@ -508,7 +508,7 @@
         tried.push(`${size} (bored hole - enter bored diameter)`);
         continue;
       }
-      const tList = PLATE_THICKNESSES.filter((p) => JAW_FILL_MIN * A - 1e-9 <= p && p <= A + 1e-9);
+      const tList = (tFixed ? [tFixed] : PLATE_THICKNESSES).filter((p) => JAW_FILL_MIN * A - 1e-9 <= p && p <= A + 1e-9);
       for (const t of tList) {
         const R = ceilStep(3 * P / (2 * ReKsi * t) + Dh / 2, step);
         const tolEff = Math.max(CROSBY_TOL_C[size] || 0.0, tolIn || 0.0);

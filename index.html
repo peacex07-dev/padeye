@@ -1833,7 +1833,7 @@
 
     function plainShortfall(provided, required, uc, unitHint) {
       const u = (uc === null || uc === undefined) ? null : Number(uc);
-      const nums = (s) => String(s).match(/-?\d+(?:\.\d+)?/g);
+      const nums = (s) => String(s).replace(/(\d),(?=\d{3})/g, "$1").match(/-?\d+(?:\.\d+)?/g);
       const pN = nums(provided), rN = nums(required);
       const unitFrom = (s) => {
         const m = String(s).match(/\b(ksi|in|t|lb|deg)\b/i);
@@ -1933,9 +1933,9 @@
       });
       if (checkLs) {
         const ls = checkLs;
-        if (ls.leg) add("Rope WLL", fmt(ls.leg.util * ls.leg.wll_lb, 0) + " lb", fmt(ls.leg.wll_lb, 0) + " lb", ls.leg.util, ls.leg.util <= 1 && !ls.leg.too_small, "lb");
-        if (ls.master_link) add("Master link WLL", fmt(ls.master_link.util * ls.master_link.wll_lb, 0) + " lb", fmt(ls.master_link.wll_lb, 0) + " lb", ls.master_link.util, ls.master_link.util <= 1, "lb");
-        if (ls.forerunner) add("Forerunner WLL", fmt(ls.forerunner.util * ls.forerunner.wll_lb, 0) + " lb", fmt(ls.forerunner.wll_lb, 0) + " lb", ls.forerunner.util, ls.forerunner.util <= 1, "lb");
+        if (ls.leg) add("Rope WLL", fmt(ls.leg.wll_lb, 0) + " lb", "≥ " + fmt(ls.leg.util * ls.leg.wll_lb, 0) + " lb", ls.leg.util, ls.leg.util <= 1 && !ls.leg.too_small, "lb");
+        if (ls.master_link) add("Master link WLL", fmt(ls.master_link.wll_lb, 0) + " lb", "≥ " + fmt(ls.master_link.util * ls.master_link.wll_lb, 0) + " lb", ls.master_link.util, ls.master_link.util <= 1, "lb");
+        if (ls.forerunner) add("Forerunner WLL", fmt(ls.forerunner.wll_lb, 0) + " lb", "≥ " + fmt(ls.forerunner.util * ls.forerunner.wll_lb, 0) + " lb", ls.forerunner.util, ls.forerunner.util <= 1, "lb");
         if (ls.shackle) add("Shackle WLL", fmt(ls.wll_req_t, 3) + " t", fmt(ls.shackle.wll_dnv, 3) + " t", ls.shackle.utilisation, ls.shackle.utilisation <= 1, "t");
       }
       (score.fits || []).forEach((f) => {

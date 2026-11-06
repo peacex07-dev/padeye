@@ -283,6 +283,19 @@
     #form .hstat { font-size: 11px; padding-right: 4px; }
     #form, #topbar, #designOut, #eqs { width: 816px; max-width: 100%; }
     .panel.shk svg { width: 100%; max-height: 230px; }
+    .devcredit { margin: 2px 0 0; font-size: 12px; color: var(--muted); font-weight: 500; letter-spacing: 0.01em; }
+    .shkfig { display: flex; gap: 10px; align-items: flex-start; justify-content: flex-start; }
+    .shkfig .shkimgwrap { flex: 0 0 auto; width: min(168px, 46%); max-width: 168px; }
+    .shkfig .shkimgwrap img { width: 100%; height: auto; max-height: 230px; object-fit: contain; display: block; background: #fff; }
+    .shkfig .shkdims { flex: 1 1 auto; min-width: 0; }
+    .shkfig .shkdims table { width: 100%; margin: 0; font-size: 12px; }
+    .shkfig .shkdims th, .shkfig .shkdims td { padding: 2px 6px; border-bottom: 1px solid #e6e9ec; }
+    .shkfig .shkdims th { width: 28%; background: var(--soft); color: var(--muted); font-weight: 600; }
+    .shkfig .shkdims td.num { text-align: right; background: var(--result); color: var(--ok); font-weight: 700; white-space: nowrap; }
+    .shkfig .shkcap { margin: 4px 0 0; font-size: 11px; color: var(--muted); }
+    @media print {
+      .shkfig .shkimgwrap img { max-height: 260px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
     .panel.front { overflow-x: auto; }
     .lsnote { margin: 2px 0 8px; padding: 6px 10px 8px; border: 1px solid #e5e5e5; background: #fafafa; font-size: 12px; line-height: 1.45; color: #2f343a; width: 816px; max-width: 100%; box-sizing: border-box; }
     .lsnote .lsrow { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 8px; align-items: start; padding: 3px 0; border-bottom: 1px solid #f0f0f0; }
@@ -324,6 +337,7 @@
     <div>
       <p class="muted" id="asset">DNV-ST-E271 [4.2.4.1], [4.4.1]</p>
       <h1>DNV 2.7-1 / DNV-ST-E271 pad eye</h1>
+      <p class="devcredit">Developed by Kalun Dugas</p>
     </div>
     <button class="noprint" id="print" type="button">Print</button>
   </header>
@@ -1659,29 +1673,15 @@
       document.getElementById("shkTitle").textContent = r ? `Shackle ${name}` : "Shackle";
       const host = document.getElementById("shk");
       if (!r) { host.innerHTML = ""; return; }
-      const { A, B, C, D, E } = r;
-      // schematic, scaled from the table: x across, y down; pin at top
-      const s = 150 / Math.max(C + B + D, E + 2 * D);
-      const cx = 200, wA = A * s, wE = (E || A * 1.6) * s, d = D * s, pb = B * s;
-      const yPin = 30, yEye = yPin + pb / 2, yIn = yEye + C * s;   // C: pin bearing face to inside of bow
-      const rb = wE / 2, yc = yIn - rb;
-      const xl = cx - wA / 2, xr = cx + wA / 2;
-      const inner = `M${xl},${yEye} L${cx - rb},${Math.max(yEye, yc)} A${rb},${rb} 0 0 0 ${cx + rb},${Math.max(yEye, yc)} L${xr},${yEye}`;
-      const ro = rb + d, xlo = xl - d, xro = xr + d;
-      const outer = `M${xlo},${yEye - pb / 2 - 2} L${cx - ro},${Math.max(yEye, yc)} A${ro},${ro} 0 0 0 ${cx + ro},${Math.max(yEye, yc)} L${xro},${yEye - pb / 2 - 2}`;
-      const f = (v) => fmt(v, 2);
-      const dim = (x1, y1, x2, y2, t, tx, ty, anc) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="dl" marker-start="url(#ar)" marker-end="url(#ar)"/><text x="${tx}" y="${ty}" text-anchor="${anc || "middle"}" class="dt">${t}</text>`;
-      const yB = yIn + d + 18;
-      host.innerHTML = `<svg viewBox="0 0 400 ${yB + 22}" class="shksvg"><defs><marker id="ar" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,1 L8,4 L0,7z" fill="#333"/></marker></defs>
-        <path d="${outer}" fill="none" stroke="#333" stroke-width="1.6"/><path d="${inner}" fill="none" stroke="#333" stroke-width="1.6"/>
-        <rect x="${xlo - 14}" y="${yPin - pb / 2}" width="${xro - xlo + 28}" height="${pb}" fill="#d9d9d9" stroke="#333" stroke-width="1.4"/>
-        <circle cx="${xlo - 14}" cy="${yPin}" r="${pb * 0.7}" fill="#d9d9d9" stroke="#333" stroke-width="1.4"/>
-        ${dim(xl, yEye + 14, xr, yEye + 14, `A ${f(A)}`, cx, yEye + 28)}
-        ${dim(xro + 26, yPin - pb / 2, xro + 26, yPin + pb / 2, "", 0, 0)}<text x="${xro + 32}" y="${yPin + 4}" class="dt">B ${f(B)}</text>
-        ${dim(xl - d - 30, yEye, xl - d - 30, yIn, "", 0, 0)}<text x="${xl - d - 36}" y="${(yEye + yIn) / 2 + 4}" text-anchor="end" class="dt">C ${f(C)}</text>
-        ${dim(cx + rb * 0.7, yc + rb * 0.71, cx + ro * 0.7, yc + ro * 0.71, "", 0, 0)}<text x="${cx + ro * 0.7 + 6}" y="${yc + ro * 0.71 + 12}" class="dt">D ${f(D)}</text>
-        ${E ? dim(cx - rb, yc, cx + rb, yc, `E ${f(E)}`, cx, yc - 6) : ""}
-        <text x="${cx}" y="${yB + 12}" text-anchor="middle" class="dt">in</text></svg>`;
+      const keys = ["A", "B", "C", "D", "E"].filter((k) => r[k] != null);
+      const rows = keys.map((k) => `<tr><th>${k}</th><td class="num">${fmt(r[k], 3)} in</td></tr>`).join("");
+      host.innerHTML = `<div class="shkfig">
+        <div class="shkimgwrap"><img src="g2130_drawing.png" alt="Crosby G-2130 bolt type anchor shackle dimension drawing" width="168" height="382"></div>
+        <div class="shkdims">
+          <table><tbody>${rows}</tbody></table>
+          <p class="shkcap">Drawing: Crosby G-2130 catalog</p>
+        </div>
+      </div>`;
     }
     function paintViews() { highlight(); shackleFig(); front(); side(); postSketch(); bow(); tables(); }
 

@@ -3,8 +3,8 @@
    select_sling, select_thimble, select_shackle, select_master_link, forerunner_length, rope_wll_lb,
    and the leg requirement WLL = WLLmin x (T/W) x leg factor, which for a symmetric set reduces to
    WLLmin / (3 cos beta) for 4 legs and WLLmin / (2 cos beta) for 2 legs.
-   It does not read a spreadsheet and does not call Python. Container footprint items (leg lengths,
-   reach, set weight S) need the footprint and stay in the Python calc.
+   Leg lengths / forerunner reach use the same footprint geometry as Python
+   (post_centres, hole_positions, lift_geometry, reach_check, forerunner_length).
    Needs calc.js (PadEye) loaded first. */
 (function (root, factory) {
   const PadEye = (typeof module === "object" && module.exports) ? require("./calc.js") : root.PadEye;
@@ -22,6 +22,27 @@
   const ML_MIN_INSIDE_IN = [270 / MM_PER_IN, 140 / MM_PER_IN];
   const ROPE_SPEC = "6x19 or 6x37 class EIPS IWRC GALV";
   const LEG_FACTOR = { 4: 4.0 / 3.0, 2: 1.0, 1: 1.0 };
+
+  const REACH_MAX_IN = 1300 / MM_PER_IN;
+  const ORIENTATIONS = [
+    "Vertical (on top of corner post)",
+    "Horizontal (inside face of corner post, toward centre)",
+    "Laid over (on top of corner post, plate tilted in line with sling leg)",
+  ];
+  const LAID_OVER = ORIENTATIONS[2];
+  const QUADRANTS = {
+    "PE1 (+x,+y)": [+1, +1],
+    "PE2 (-x,+y)": [-1, +1],
+    "PE3 (-x,-y)": [-1, -1],
+    "PE4 (+x,-y)": [+1, -1],
+  };
+  const SIDES_2LEG = {
+    "PE1 (0,+y)": [0, +1],
+    "PE2 (0,-y)": [0, -1],
+  };
+  const LAYOUTS = { "4-leg": QUADRANTS, "2-leg": SIDES_2LEG };
+  const LIFT_SET_NAME = { 4: "4-leg", 2: "2-leg", 1: "1-leg" };
+
 
   const US_ROPE_SIZES = [
     ['1/2"', 0.5], ['9/16"', 0.5625], ['5/8"', 0.625], ['3/4"', 0.75], ['7/8"', 0.875],
@@ -136,9 +157,166 @@
     let row = API_TABLE_16.find((r) => r[0] >= dIn - 1e-9);
     if (!row) row = API_TABLE_16[API_TABLE_16.length - 1];
     const apiLen = row[1];
-    const reachLen = Math.max(0.0, zMaster - 1300 / MM_PER_IN);
+    const reachLen = Math.max(0.0, zMaster - REACH_MAX_IN);
     const need = Math.max(apiLen, reachLen);
-    return { api_d: row[0], api_len: apiLen, reach_len: reachLen, need, length: Math.ceil(need / 12 - 1e-9) * 12 };
+    return {
+      api_d: row[0], api_len: apiLen, reach_len: reachLen, need,
+      length: Math.ceil(need / 12 - 1e-9) * 12,
+      governs: apiLen >= reachLen ? "API 2CCU Table 16" : "51.2 in reach [8.3.1]",
+    };
+  }
+
+  function postCentres(L, B, sxM, syM, sxP, syP, layout) {
+    const sizes = { [-1]: [sxM, syM], [1]: [sxP, syP] };
+    const out = {};
+    const side = Object.values(layout).every(([sx]) => sx === 0);
+    const beam = (syM + syP) / 2.0;
+    for (const [name, [sx, sy]] of Object.entries(layout)) {
+      if (side) {
+        out[name] = [0.0, sy * (B / 2.0 - beam / 2.0), beam, beam];
+        continue;
+      }
+      const [sizeX, sizeY] = sizes[sx];
+      out[name] = [sx * (L / 2 - sizeX / 2), sy * (B / 2 - sizeY / 2), sizeX, sizeY];
+    }
+    return out;
+  }
+
+  function holePositions(posts, orientation) {
+    const holes = {}, sFace = {};
+    for (const [name, [px, py, sizeX, sizeY]] of Object.entries(posts)) {
+      if (orientation === ORIENTATIONS[0] || orientation === LAID_OVER) {
+        holes[name] = [px, py]; sFace[name] = 0.0;
+        continue;
+      }
+      const d = Math.hypot(px, py);
+      const ux = -px / d, uy = -py / d;
+      const sx = ux ? (sizeX / 2) / Math.abs(ux) : Infinity;
+      const sy = uy ? (sizeY / 2) / Math.abs(uy) : Infinity;
+      const s = Math.min(sx, sy);
+      holes[name] = [px + s * ux, py + s * uy];
+      sFace[name] = s;
+    }
+    return [holes, sFace];
+  }
+
+  function verticalShares(W, holes, layout, xg, yg) {
+    const entries = Object.entries(layout);
+    if (entries.every(([, [sx]]) => sx === 0)) {
+      const ySide = {};
+      for (const [name, [, sy]] of entries) ySide[sy] = holes[name][1];
+      const yM = ySide[-1], yP = ySide[1];
+      if (!(yM < yg && yg < yP)) throw new Error("CoG lies outside the pad eyes along y.");
+      const Wside = { 1: W * (yg - yM) / (yP - yM) };
+      Wside[-1] = W - Wside[1];
+      const V = {};
+      for (const [name, [, sy]] of entries) V[name] = Wside[sy];
+      return V;
+    }
+    const xEnd = {};
+    for (const [name, [sx]] of entries) xEnd[sx] = holes[name][0];
+    const xM = xEnd[-1], xP = xEnd[1];
+    if (!(xM < xg && xg < xP)) throw new Error("CoG lies outside the pad eyes along x.");
+    const Wend = { 1: W * (xg - xM) / (xP - xM) };
+    Wend[-1] = W - Wend[1];
+    const V = {};
+    for (const [name, [sx, sy]] of entries) {
+      if (sy === 0) { V[name] = Wend[sx]; continue; }
+      const b = Math.abs(holes[name][1]);
+      if (Math.abs(yg) >= b) throw new Error("CoG lies outside the pad eyes along y.");
+      V[name] = Wend[sx] / 2 * (1 + sy * yg / b);
+    }
+    return V;
+  }
+
+  function hookHeightForMaxAngle(holes, xg, yg, betaMaxDeg) {
+    let rMax = 0;
+    for (const [hx, hy] of Object.values(holes)) rMax = Math.max(rMax, Math.hypot(hx - xg, hy - yg));
+    return rMax / Math.tan(betaMaxDeg * Math.PI / 180);
+  }
+
+  function liftGeometry(mgwLb, holes, xg, yg, angleHDeg, liftSet) {
+    const h = hookHeightForMaxAngle(holes, xg, yg, 90.0 - angleHDeg);
+    const layout = LAYOUTS[liftSet];
+    const V = verticalShares(mgwLb, holes, layout, xg, yg);
+    const wllMin = PadEye.wllMinT(mgwLb * PadEye.KG_PER_LB);
+    const names = Object.keys(layout);
+    let cx = 0, cy = 0;
+    for (const [hx, hy] of Object.values(holes)) { cx += hx; cy += hy; }
+    cx /= names.length; cy /= names.length;
+    const legs = [];
+    for (const name of names) {
+      const [hx, hy] = holes[name];
+      const dx = xg - hx, dy = yg - hy;
+      const r = Math.hypot(dx, dy);
+      const beta = Math.atan2(r, h) * 180 / Math.PI;
+      const T = V[name] / Math.cos(beta * Math.PI / 180);
+      const lf = liftSet === "4-leg" ? LEG_FACTOR[4] : LEG_FACTOR[2];
+      legs.push({
+        name, x: hx, y: hy,
+        L: Math.hypot(r, h), beta, angle_h: 90.0 - beta,
+        bearing: Math.atan2(dy, dx) * 180 / Math.PI,
+        V: V[name], T,
+        wll_req_t: wllMin * (T / mgwLb) * lf,
+        angle_ok: 90.0 - beta >= 45.0 - 1e-9,
+      });
+    }
+    return {
+      mgw_lb: mgwLb, xg, yg, ex: xg - cx, ey: yg - cy, h,
+      angle_h: angleHDeg, lift_set: liftSet, n_legs: Object.keys(holes).length,
+      wll_min_t: wllMin, legs,
+      governing: legs.reduce((a, b) => (a.wll_req_t >= b.wll_req_t ? a : b)),
+      equal_legs: Math.max(...legs.map((g) => g.L)) - Math.min(...legs.map((g) => g.L)) < 0.01,
+      sum_V: legs.reduce((s, g) => s + g.V, 0),
+    };
+  }
+
+  function reachCheck(zPe, legs, L, B) {
+    const longSideY = L >= B;
+    const out = [];
+    for (const g of legs) {
+      const d = longSideY ? B / 2 - Math.abs(g.y) : L / 2 - Math.abs(g.x);
+      out.push([Math.max(0.0, zPe - (g.L - d)), d, g.name]);
+    }
+    out.sort((a, b) => b[0] - a[0]);
+    const [zReach, dEdge, name] = out[0];
+    return { z_reach: zReach, d_edge: dEdge, leg: name, side: longSideY ? "y = +/-B/2" : "x = +/-L/2" };
+  }
+
+  /** Build geo (and optional laid-over hole move) exactly as Python run(). */
+  function computeGeo(opts) {
+    const {
+      mgwLb, nLegs, angleHDeg, L, B, sxM, syM, sxP, syP, xg, yg,
+      orientation, hLo, tiltLo,
+    } = opts;
+    if (!(nLegs === 2 || nLegs === 4) || L == null || B == null) return null;
+    const liftSet = LIFT_SET_NAME[nLegs];
+    const orient = orientation || ORIENTATIONS[0];
+    const posts = postCentres(L, B, sxM ?? 6, syM ?? 6, sxP ?? 6, syP ?? 6, LAYOUTS[liftSet]);
+    let [holes, sFace] = holePositions(posts, orient);
+    let geo = liftGeometry(mgwLb, holes, xg ?? 0, yg ?? 0, angleHDeg, liftSet);
+    if (orient === LAID_OVER) {
+      const hlo = hLo;
+      if (hlo == null || hlo < 0) throw new Error("Laid-over pad eye: enter the hole centre to base along the plate.");
+      for (let i = 0; i < 8; i++) {
+        const neu = {};
+        for (const g of geo.legs) {
+          const [px, py] = posts[g.name];
+          const dx = (xg ?? 0) - px, dy = (yg ?? 0) - py;
+          const r = Math.hypot(dx, dy);
+          const off = hlo * Math.sin((tiltLo == null ? g.beta : tiltLo) * Math.PI / 180);
+          neu[g.name] = r ? [px + off * dx / r, py + off * dy / r] : [px, py];
+        }
+        holes = neu;
+        geo = liftGeometry(mgwLb, holes, xg ?? 0, yg ?? 0, angleHDeg, liftSet);
+      }
+    }
+    geo.orientation = orient;
+    geo.L = L; geo.B = B; geo.s_face = sFace; geo.h_lo = hLo;
+    geo.sizes = { "-x": [sxM ?? 6, syM ?? 6], "+x": [sxP ?? 6, syP ?? 6] };
+    geo.seat = {};
+    for (const name of Object.keys(posts)) geo.seat[name] = posts[name].slice(0, 2);
+    return geo;
   }
 
   /** nLegs 4, 2 or 1 (single pad eye, single leg). angleHDeg from horizontal; k asymmetry factor.
@@ -177,10 +355,25 @@
     } else {
       sh = smallest;
     }
+    let geo = null;
+    let reach = null;
+    try {
+      if (opts.L != null && opts.B != null && (nLegs === 2 || nLegs === 4)) {
+        geo = computeGeo(opts);
+      }
+    } catch (e) {
+      geo = { error: String(e && e.message || e), legs: [] };
+    }
     const fr = forerunner ? selectSling(wllMinT) : null;
     if (fr) {
-      Object.assign(fr, forerunnerLength(fr.d_in, 0.0));
+      let zMaster = 0.0;
+      if (geo && geo.legs && geo.legs.length && opts.zPe != null) {
+        reach = reachCheck(opts.zPe, geo.legs, opts.L, opts.B);
+        zMaster = reach.z_reach;
+      }
+      Object.assign(fr, forerunnerLength(fr.d_in, zMaster));
       fr.thimble = selectThimble(fr.d_in);
+      if (reach) fr.z_top = Math.max(0.0, reach.z_reach - fr.length);
     }
     return {
       mgw_lb: mgwLb, n_legs: nLegs, angle_h: nLegs === 1 ? 90.0 : angleHDeg, beta: betaDeg,
@@ -190,6 +383,7 @@
       forerunner: fr,
       master_link: nLegs === 1 ? null : selectMasterLink(wllMinT),
       rope_spec: ROPE_SPEC,
+      geo, reach, z_pe: opts.zPe == null ? null : opts.zPe,
     };
   }
 
@@ -209,13 +403,28 @@
     return whole ? `${whole}-${num}/${den}"` : `${num}/${den}"`;
   }
   function ftIn(x) {
-    const inches = Number(x);
+    // Python ft_in: inches -> 'F ft I in' after round-to-nearest-inch
+    let inches = Math.round(Number(x));
     const ft = Math.floor(inches / 12), rem = inches - ft * 12;
-    if (ft <= 0) return `${PadEye.pythonFixed ? PadEye.pythonFixed(rem, 1) : rem.toFixed(1)} in`;
-    return rem < 0.05 ? `${ft} ft` : `${ft} ft ${PadEye.pythonFixed ? PadEye.pythonFixed(rem, 1) : rem.toFixed(1)} in`;
+    return `${ft} ft ${rem} in`;
+  }
+  function ftInShort(x) {
+    // Python ft_in_short: 8' or 11'6"
+    let inches = Math.round(Number(x));
+    const ft = Math.floor(inches / 12), rem = inches - ft * 12;
+    return rem === 0 ? `${ft}'` : `${ft}'${rem}"`;
+  }
+  function legLengthLabel(g) {
+    return `${Number(g.L).toFixed(1)} in (${String(g.name).slice(0, 3)})`;
+  }
+  function slingLegLengthText(r) {
+    if (!r || !r.geo || !r.geo.legs || !r.geo.legs.length) return "";
+    const shorts = r.geo.legs.map((g) => ftInShort(g.L));
+    if (new Set(shorts).size === 1) return shorts[0];
+    return shorts.map((t, i) => `${t} (${String(r.geo.legs[i].name).slice(0, 3)})`).join(" / ");
   }
 
-  /** One-sentence description (Python summary_sentence). Leg lengths need the container footprint — omitted here. */
+  /** One-sentence description (Python summary_sentence). */
   function summarySentence(r) {
     if (!r) return "";
     const n = r.n_legs, nWord = NUMBER_WORDS[n] || String(n);
@@ -223,8 +432,16 @@
     const wllMinLb = tToLb(r.wll_min_t);
     const parts = [];
     const missing = [];
+    let lengthPhrase = "lengths not sized on this page";
+    if (r.geo && r.geo.legs && r.geo.legs.length) {
+      const lengths = r.geo.legs.map(legLengthLabel);
+      lengthPhrase = lengths.length === 1 ? `lengths ${lengths[0]}`
+        : `lengths ${lengths.slice(0, -1).join(", ")} and ${lengths[lengths.length - 1]}`;
+    } else if (r.geo && r.geo.error) {
+      lengthPhrase = `lengths unavailable (${r.geo.error})`;
+    }
     if (leg) {
-      parts.push(`${nWord} ${leg.size} ${ROPE_SPEC} wire rope legs to EN 13414-1 [8.3.3.2], lengths not sized on this page, with ferrule-secured eyes to EN 13411-3 and Crosby G-414 thimbles`);
+      parts.push(`${nWord} ${leg.size} ${ROPE_SPEC} wire rope legs to EN 13414-1 [8.3.3.2], ${lengthPhrase}, with ferrule-secured eyes to EN 13411-3 and Crosby G-414 thimbles`);
     } else missing.push("wire rope legs");
     if (fr) {
       parts.push(`a ${fr.size} ${ROPE_SPEC} wire rope forerunner, length ${ftIn(fr.length)}, with ferrule-secured eyes and Crosby G-414 thimbles`);
@@ -255,21 +472,27 @@
     return s;
   }
 
-  /** One-line order description (Python order_line). Leg lengths omitted (no footprint on this page). */
+  /** One-line order description (Python order_line). */
   function orderLine(r) {
     if (!r) return "";
     const leg = r.leg, fr = r.forerunner, ml = r.master_link, sh = r.shackle;
     if (!(leg && ml && sh)) {
       return "Not available — a component exceeds its catalogue range (see warnings).";
     }
-    let sling = `${leg.size} × (leg lengths not sized on this page) DNVGL-ST-E271 Type Approved ${r.n_legs}-Leg Sling`;
+    let lengthPart = "(leg lengths not sized on this page)";
+    if (r.geo && r.geo.legs && r.geo.legs.length) {
+      let lengths = r.geo.legs.map((g) => ftInShort(g.L));
+      if (new Set(lengths).size > 1) {
+        lengths = lengths.map((t, i) => `${t} (${String(r.geo.legs[i].name).slice(0, 3)})`);
+      }
+      // unique preserve order like dict.fromkeys
+      const uniq = [];
+      for (const t of lengths) if (!uniq.includes(t)) uniq.push(t);
+      lengthPart = uniq.join(" / ");
+    }
+    let sling = `${leg.size} × ${lengthPart} DNVGL-ST-E271 Type Approved ${r.n_legs}-Leg Sling`;
     if (fr) {
-      const frShort = (() => {
-        const inches = Number(fr.length);
-        const ft = Math.floor(inches / 12), rem = Math.round(inches - ft * 12);
-        return rem ? `${ft}'-${rem}"` : `${ft}'-0"`;
-      })();
-      sling += ` with ${fr.size} × ${frShort} Forerunner`;
+      sling += ` with ${fr.size} × ${ftInShort(fr.length)} Forerunner`;
     }
     const shName = sh.dnv_ta ? "G2130-OC" : "G2130";
     const shCert = sh.dnv_ta ? "" : " (DNV product certificate)";
@@ -278,6 +501,10 @@
       + `shackles${shCert} on bottoms, captivated`);
   }
 
-  return { design, selectSling, selectMasterLink, selectThimble, selectShackle, ropeWllLb, forerunnerLength, US_ROPE_SIZES, tToLb, ROPE_SPEC, summarySentence, orderLine };
+  return {
+    design, selectSling, selectMasterLink, selectThimble, selectShackle, ropeWllLb,
+    forerunnerLength, computeGeo, liftGeometry, reachCheck, ftIn, ftInShort, slingLegLengthText,
+    US_ROPE_SIZES, tToLb, ROPE_SPEC, summarySentence, orderLine, ORIENTATIONS, LAID_OVER,
+  };
 });
 

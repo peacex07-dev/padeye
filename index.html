@@ -545,7 +545,17 @@
       w: "w is the fillet weld leg around the cheek.",
       A: "A is the shackle jaw. The stack t + 2 tc has to sit between 75 percent of A and A.",
       pin: "The pin diameter is Crosby dimension B.",
-      C: "C is the shackle inside length. The clear space to the rope is what remains after the pad eye, the thimble wall, and the rope."
+      C: "C is the shackle inside length. The clear space to the rope is what remains after the pad eye, the thimble wall, and the rope.",
+      L: "CCU length along x, skid edge to skid edge. Used with B and the posts to place pad eyes for sling leg lengths.",
+      B: "CCU width along y, skid edge to skid edge.",
+      sxM: "−x end corner-post size along x (for 2-leg, the post size along y sets the side-beam width).",
+      syM: "−x end corner-post size along y.",
+      sxP: "+x end corner-post size along x.",
+      syP: "+x end corner-post size along y.",
+      xg: "Unit CoG along the length, from the footprint centre (positive toward +x).",
+      yg: "Unit CoG along the width, from the footprint centre (positive toward +y).",
+      zPe: "Pad eye hole centre above the container bottom. Used only with a forerunner for the 1.3 m reach check.",
+      slingL: "Sling leg length from pad-eye pin centre to the master-link bearing point (Python lift geometry)."
     };
     let inputs = {};
     let mark = "R";
@@ -602,9 +612,36 @@
     };
     let mode = "design";
     let checkInputs = null;
-    let dz = { stage: "1", single: "0", mgw: "50000", theta: "45", k: "1", re: "50", oop: "0", tilt: "", shackle: "auto", rope: "auto", tol: "0", fore: "0", bset: "", tset: "", cheek: "0", tc: "", Rc: "", w: "" };
+    let dz = { stage: "1", single: "0", mgw: "50000", theta: "45", k: "1", re: "50", oop: "0", tilt: "", shackle: "auto", rope: "auto", tol: "0", fore: "0", bset: "", tset: "", cheek: "0", tc: "", Rc: "", w: "", L: "144", B: "144", sxM: "6", syM: "6", sxP: "6", syP: "6", xg: "0", yg: "0", zPe: "104" };
     let designed = null;   // { error, ls, d }
     const dnum = (key) => Number(String(dz[key] ?? "").replace(/,/g, "").trim());
+
+    /** Footprint / CoG / pad-eye height for sling leg lengths (Python 02_8-3 defaults). */
+    function footprintOpts(src, nLegs, angleHDeg, orientation, hLo, tiltLo) {
+      const num = (k, def) => {
+        const v = Number(String(src[k] ?? "").replace(/,/g, "").trim());
+        return Number.isFinite(v) ? v : def;
+      };
+      const L = num("L", 144), B = num("B", 144);
+      const opts = {
+        L, B,
+        sxM: num("sxM", 6), syM: num("syM", 6), sxP: num("sxP", 6), syP: num("syP", 6),
+        xg: num("xg", 0), yg: num("yg", 0),
+        orientation: orientation || LiftingSet.ORIENTATIONS[0],
+      };
+      if (src.fore === "1" || src.fore === 1 || src.fore === true) {
+        opts.zPe = num("zPe", 104);
+      }
+      if (orientation === LiftingSet.LAID_OVER || (orientation && String(orientation).startsWith("Laid"))) {
+        opts.hLo = (hLo != null && Number.isFinite(Number(hLo))) ? Number(hLo) : 4.5;
+        if (tiltLo != null && Number.isFinite(Number(tiltLo))) opts.tiltLo = Number(tiltLo);
+      }
+      return opts;
+    }
+    function lsOrientationFromStage(st, single) {
+      if (single) return LiftingSet.ORIENTATIONS[st.orient === "horizontal" ? 1 : 0];
+      return LiftingSet.ORIENTATIONS[{ vertical: 0, horizontal: 1, laid: 2 }[st.orient]];
+    }
 
     // Table 8-1 stops at 25,000 kg. Say it in lb, the unit the page takes.
     function lbMsg(msg, mgwLb) {
@@ -662,7 +699,9 @@
         const fore = dz.fore === "1";
         const ropeChoice = dz.rope === "auto" ? null : dz.rope;
         // 1. lifting set from the load (needed first: the rope sets the thimble that the pad eye must clear)
-        out.ls = LiftingSet.design({ mgwLb: mgw, nLegs: nPe, angleHDeg: theta, k, forerunner: fore, ropeLabel: ropeChoice });
+        const lsOri = lsOrientationFromStage(st, single);
+        const fp0 = footprintOpts(dz, nPe, theta, lsOri, null, tilt);
+        out.ls = LiftingSet.design(Object.assign({ mgwLb: mgw, nLegs: nPe, angleHDeg: theta, k, forerunner: fore, ropeLabel: ropeChoice }, fp0));
         if (!out.ls.leg) throw new Error("No wire rope up to 2-1/2 in carries this leg load. Split the lift or use chain.");
         const ropeLabel = out.ls.leg.size;
         if (!(ropeLabel in PadEye.ROPE_IN) || !(ropeLabel in PadEye.ROPE_THIMBLE)) {
@@ -711,13 +750,14 @@
           d.result = PadEye.run(mgw, nPe, theta, k, d.shackle_type, d.shackle_size, d.t, d.R, d.Dh, d.b, d.h, tc, Rc, w, re, ropeMm, tol, ori, 0.0, st.orient === "laid" && !single ? tilt : null, oop);
         }
         // 3. lifting set again with the shackle the plate design settled on
-        out.ls = LiftingSet.design({ mgwLb: mgw, nLegs: nPe, angleHDeg: theta, k, forerunner: fore, shackle: `${out.d.shackle_type} ${out.d.shackle_size}`, ropeLabel: ropeChoice });
+        const fp1 = footprintOpts(dz, nPe, theta, lsOri, out.d && out.d.h, tilt);
+        out.ls = LiftingSet.design(Object.assign({ mgwLb: mgw, nLegs: nPe, angleHDeg: theta, k, forerunner: fore, shackle: `${out.d.shackle_type} ${out.d.shackle_size}`, ropeLabel: ropeChoice }, fp1));
         out.ropeLabel = ropeLabel;
       } catch (err) {
         if (!(err instanceof Error)) throw err;
         out.error = lbMsg(err.message, dnum("mgw"));
         if (out.ctx) { try { out.attempt = attemptPlate(out.ctx) || out.attempt || null; } catch (e) { /* keep any earlier attempt */ } }
-        if (out.attempt && out.in) { try { out.ls = LiftingSet.design({ mgwLb: out.in.mgw, nLegs: out.nPe, angleHDeg: out.ctx.theta, k: out.in.k, forerunner: dz.fore === "1", shackle: `${out.attempt.shackle_type} ${out.attempt.shackle_size}`, ropeLabel: dz.rope === "auto" ? null : dz.rope }); } catch (e) { /* keep first lifting set */ } }
+        if (out.attempt && out.in) { try { const fpA = footprintOpts(dz, out.nPe, out.ctx.theta, lsOrientationFromStage(STAGES[dz.stage], out.nPe === 1), out.attempt.h, out.in.tilt); out.ls = LiftingSet.design(Object.assign({ mgwLb: out.in.mgw, nLegs: out.nPe, angleHDeg: out.ctx.theta, k: out.in.k, forerunner: dz.fore === "1", shackle: `${out.attempt.shackle_type} ${out.attempt.shackle_size}`, ropeLabel: dz.rope === "auto" ? null : dz.rope }, fpA)); } catch (e) { /* keep first lifting set */ } }
         out.d = null;
       }
       return out;
@@ -738,6 +778,9 @@
         oop: String(dz.stage === "5" ? 0 : i.oop), rope: out.ropeLabel, tol: String(i.tol),
         shackle: `${d.shackle_type} ${d.shackle_size}`,
         t: String(d.t), R: String(d.R), Dh: String(d.Dh), b: String(d.b), h: String(d.h), tc: String(d.tc || 0), Rc: String(d.Rc || 0), w: String(d.w || 0),
+        L: String(dz.L ?? "144"), B: String(dz.B ?? "144"),
+        sxM: String(dz.sxM ?? "6"), syM: String(dz.syM ?? "6"), sxP: String(dz.sxP ?? "6"), syP: String(dz.syP ?? "6"),
+        xg: String(dz.xg ?? "0"), yg: String(dz.yg ?? "0"), zPe: String(dz.zPe ?? "104"),
       };
     }
 
@@ -761,9 +804,18 @@
         <div class="colhead"><span></span><span>Parameter</span><span>Requirement</span><span>Recommended</span><span>Input</span><span>Unit</span><span>Status</span></div>
         ${H("load", "Load")}<div class="fgrid">
         ${dselect("stage", "", "Lift type", stageOpts, dz.stage)}
+        ${dfield("L", "L", "CCU length (skid edge to edge, x)", "in")}
+        ${dfield("B", "B", "CCU width (skid edge to edge, y)", "in")}
+        ${dfield("sxM", "", "−x end posts: size along x", "in")}
+        ${dfield("syM", "", "−x end posts: size along y", "in")}
+        ${dfield("sxP", "", "+x end posts: size along x", "in")}
+        ${dfield("syP", "", "+x end posts: size along y", "in")}
+        ${dfield("xg", "xg", "Unit CoG x from footprint centre", "in")}
+        ${dfield("yg", "yg", "Unit CoG y from footprint centre", "in")}
         ${dfield("mgw", "R", "Max gross weight", "lb")}
         ${dfield("theta", "θ", "Sling angle from horizontal", "deg")}
         ${dfield("k", "k", "Uneven load factor", "")}
+        ${dz.fore === "1" ? dfield("zPe", "z", "Pad eye hole above container bottom", "in") : ""}
         </div>
         ${H("req", "Required")}<div class="fgrid">
         ${dread("wllmin", "WLLmin", "Min WLL lifting set", "t")}
@@ -771,6 +823,7 @@
         </div>
         ${H("set", "Lifting set")}<div class="fgrid">
         ${dselect("stdrope", "", "Wire rope size", ropeOpts, dz.rope).replace('data-dkey="stdrope"', 'data-dkey="rope"').replace('data-rec="stdrope"', 'data-rec="rope"').replace('data-mark="stdrope"', 'data-mark="rope"')}
+        ${dread("slingL", "", "Sling leg length", "")}
         ${dread("ml", "", "Master link", "")}
         ${dselect("fore", "", "Forerunner", [["0", "None"], ["1", "Add forerunner"]], dz.fore)}
         ${dfield("tol", "", "Extra bow gap allowance", "in")}
@@ -821,6 +874,7 @@
         req.wlls = ls.n_legs === 4 ? "WLLmin / (3 cos β)" : ls.n_legs === 2 ? "WLLmin / (2 cos β)" : "WLLmin";
         if (ls.leg) st.rope = P(ls.leg.util <= 1);
         if (ls.master_link) { val.ml = `A-1346 stock ${ls.master_link.stock}`; st.ml = P(ls.master_link.util <= 1 && ls.master_link.inside_ok); } else val.ml = "None";
+        val.slingL = (ls.geo && ls.geo.legs && ls.geo.legs.length) ? LiftingSet.slingLegLengthText(ls) : "";
         if (ls.forerunner) st.fore = P(ls.forerunner.util <= 1);
       }
       const fit = (n) => { const f = score && score.fits ? score.fits.find((x) => x.name.startsWith(n)) : null; return f ? P(f.ok) : ""; };
@@ -935,6 +989,9 @@
       if (ls.leg) {
         rows.push(drow("rope", "Sling legs", `${ls.leg.size} wire rope`, `WLL ${fmt(ls.leg.wll_lb, 0)} lb · Util ${fmt(ls.leg.util, 3)}${ls.leg.size === '2-1/2"' ? " · no G-414 thimble" : ""}`));
       }
+      if (ls.geo && ls.geo.legs && ls.geo.legs.length) {
+        rows.push(drow("", "Sling leg length", LiftingSet.slingLegLengthText(ls), ls.geo.legs.map((g) => `${g.name.slice(0, 3)} ${fmt(g.L, 1)} in`).join(" · ")));
+      }
       if (ls.thimble) {
         const th = ls.thimble;
         const fit = th.bow_fits === undefined ? "" : (th.bow_fits && th.width_fits ? " · fits" : ` · <span class="warn">does not fit${th.bow_fits ? "" : " (bow)"}${th.width_fits ? "" : " (width)"}</span>`);
@@ -999,6 +1056,9 @@
         tc: dz.cheek === "1" ? String(dz.tc || 0) : "0",
         Rc: dz.cheek === "1" ? String(dz.Rc || 0) : "0",
         w: dz.cheek === "1" ? String(dz.w || 0) : "0",
+        L: String(dz.L ?? "144"), B: String(dz.B ?? "144"),
+        sxM: String(dz.sxM ?? "6"), syM: String(dz.syM ?? "6"), sxP: String(dz.sxP ?? "6"), syP: String(dz.syP ?? "6"),
+        xg: String(dz.xg ?? "0"), yg: String(dz.yg ?? "0"), zPe: String(dz.zPe ?? "104"),
       });
     }
     function canCopyDesign() { try { return !!runDesign().d; } catch (e) { return false; } }
@@ -1101,6 +1161,10 @@
       inp.orient = st.orient;
       if (inp.fore !== "1") inp.fore = "0";
       if (inp.cheek !== "1") inp.cheek = "0";
+      const fpDef = { L: "144", B: "144", sxM: "6", syM: "6", sxP: "6", syP: "6", xg: "0", yg: "0", zPe: "104" };
+      for (const [k, v] of Object.entries(fpDef)) {
+        if (inp[k] === undefined || inp[k] === null || String(inp[k]).trim() === "") inp[k] = v;
+      }
       return inp;
     }
     function checkLiftingSet(inp) {
@@ -1112,7 +1176,12 @@
       const ropeChoice = !inp.rope || inp.rope === "auto" ? null : inp.rope;
       const shOpt = (!inp.shackle || inp.shackle === "auto") ? undefined : inp.shackle;
       try {
-        return LiftingSet.design({ mgwLb: mgw, nLegs: n, angleHDeg: theta, k, forerunner: inp.fore === "1", shackle: shOpt, ropeLabel: ropeChoice });
+        const st = STAGES[inp.stage] || STAGES[stageFromNO(inp.n, inp.orient)];
+        const ori = lsOrientationFromStage(st, n === 1);
+        const hLo = (ori === LiftingSet.LAID_OVER) ? Number(String(inp.h ?? "").replace(/,/g, "")) : null;
+        const tiltLo = (ori === LiftingSet.LAID_OVER && String(inp.tilt ?? "").trim() !== "") ? Number(inp.tilt) : null;
+        const fp = footprintOpts(inp, n, theta, ori, Number.isFinite(hLo) ? hLo : null, Number.isFinite(tiltLo) ? tiltLo : null);
+        return LiftingSet.design(Object.assign({ mgwLb: mgw, nLegs: n, angleHDeg: theta, k, forerunner: inp.fore === "1", shackle: shOpt, ropeLabel: ropeChoice }, fp));
       } catch (e) { return null; }
     }
     // Resolve Auto rope/shackle and cheek-off zeros for scoring; never throws.
@@ -1159,9 +1228,18 @@
         <div class="colhead"><span></span><span>Parameter</span><span>Requirement</span><span>Recommended</span><span>Input</span><span>Unit</span><span>Status</span></div>
         ${H("load", "Load")}<div class="fgrid">
         ${cselect("stage", "", "Lift type", stageOpts, inputs.stage)}
+        ${cfield("L", "L", "CCU length (skid edge to edge, x)", "in")}
+        ${cfield("B", "B", "CCU width (skid edge to edge, y)", "in")}
+        ${cfield("sxM", "", "−x end posts: size along x", "in")}
+        ${cfield("syM", "", "−x end posts: size along y", "in")}
+        ${cfield("sxP", "", "+x end posts: size along x", "in")}
+        ${cfield("syP", "", "+x end posts: size along y", "in")}
+        ${cfield("xg", "xg", "Unit CoG x from footprint centre", "in")}
+        ${cfield("yg", "yg", "Unit CoG y from footprint centre", "in")}
         ${cfield("mgw", "R", "Max gross weight", "lb")}
         ${cfield("theta", "θ", "Sling angle from horizontal", "deg")}
         ${cfield("k", "k", "Uneven load factor", "")}
+        ${(inputs.fore || "0") === "1" ? cfield("zPe", "z", "Pad eye hole above container bottom", "in") : ""}
         </div>
         ${H("req", "Required")}<div class="fgrid">
         ${cread("wllmin", "WLLmin", "Min WLL lifting set", "t")}
@@ -1169,6 +1247,7 @@
         </div>
         ${H("set", "Lifting set")}<div class="fgrid">
         ${cselect("rope", "", "Wire rope size", ropeOpts, inputs.rope || "auto")}
+        ${cread("slingL", "", "Sling leg length", "")}
         ${cread("ml", "", "Master link", "")}
         ${cselect("fore", "", "Forerunner", [["0", "None"], ["1", "Add forerunner"]], inputs.fore || "0")}
         ${cfield("tol", "", "Extra bow gap allowance", "in")}
@@ -1200,6 +1279,7 @@
         req.wlls = ls.n_legs === 4 ? "WLLmin / (3 cos β)" : ls.n_legs === 2 ? "WLLmin / (2 cos β)" : "WLLmin";
         if (ls.leg) st.rope = P(ls.leg.util <= 1 && !ls.leg.too_small);
         if (ls.master_link) { val.ml = `A-1346 stock ${ls.master_link.stock}`; st.ml = P(ls.master_link.util <= 1 && ls.master_link.inside_ok); } else val.ml = "None";
+        val.slingL = (ls.geo && ls.geo.legs && ls.geo.legs.length) ? LiftingSet.slingLegLengthText(ls) : "";
         if (ls.forerunner) st.fore = P(ls.forerunner.util <= 1);
         if (ls.shackle) st.shackle = P(ls.shackle.utilisation <= 1);
       }
@@ -1280,6 +1360,11 @@
           tol: String(inputs.tol ?? "0"), oop: String(inputs.oop ?? "0"),
           tilt: String(inputs.tilt ?? ""),
           shackle: "auto", tset: "", bset: "", cheek: "0", rope: "auto", fore: "0",
+          L: String(inputs.L ?? dz.L ?? "144"), B: String(inputs.B ?? dz.B ?? "144"),
+          sxM: String(inputs.sxM ?? dz.sxM ?? "6"), syM: String(inputs.syM ?? dz.syM ?? "6"),
+          sxP: String(inputs.sxP ?? dz.sxP ?? "6"), syP: String(inputs.syP ?? dz.syP ?? "6"),
+          xg: String(inputs.xg ?? dz.xg ?? "0"), yg: String(inputs.yg ?? dz.yg ?? "0"),
+          zPe: String(inputs.zPe ?? dz.zPe ?? "104"),
         });
         const o = runDesign();
         Object.assign(dz, keep);

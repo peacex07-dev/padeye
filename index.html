@@ -127,47 +127,90 @@
     .gaprep tr.bad td.num { background: #f7d9d6; color: var(--bad); }
     .gaprep .gapok { padding: 6px 8px; background: var(--result); color: var(--ok); font-weight: 700; border: 1px solid #cfe6c7; }
     .gaprep .gapfail { color: var(--bad); font-weight: 700; }
-    @page {
-      size: letter portrait;
-      margin: 0.5in;
-      @bottom-center {
-        content: "Page " counter(page) " of " counter(pages) " · DNV pad eye · Developed by Kalun Dugas";
-        font-family: "Courier New", Courier, monospace;
-        font-size: 9px;
-        color: #555;
-      }
-    }
+    @page { size: letter portrait; margin: 0.5in 0.5in 0.65in 0.5in; }
     @media print {
-      body { background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-size: 10.5px; }
+      /* Fixed letter spreadsheet — ignore all screen-width breakpoints */
+      body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact;
+        font: 8.5pt/1.25 "Courier New", Courier, monospace !important; }
       .noprint, .modebar, .layoutbar, .grip, #print, .copyrow, #chips, .uc { display: none !important; }
       .print-only { display: block !important; }
-      header, main { width: auto !important; max-width: none !important; margin: 0 !important; padding-left: 0; padding-right: 0; }
-      header { margin-top: 0; padding: 6px 8px; }
+      header, main { width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 !important; }
+      header { margin: 0 0 4px !important; padding: 4px 6px !important; }
+      h1 { font-size: 11pt !important; }
+      .muted, .devcredit, .printmeta { font-size: 8pt !important; }
       main { display: block !important; }
       #modebar, #topbar, #form, #designOut, #eqs, main > div:has(> #views), main > div:has(> #ucR) {
-        order: unset !important; width: 100% !important; max-width: 100% !important;
+        order: unset !important; position: static !important; width: 100% !important; max-width: 100% !important;
+        max-height: none !important; overflow: visible !important;
       }
       #form, #topbar, #designOut, #eqs, .lsnote, .gaprep { width: 100% !important; max-width: 100% !important; }
-      .drawings { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8px !important; margin-top: 8px; }
-      .panel, table, .stat, .lsnote, .gaprep, tr, h2, #topbar .stats { break-inside: avoid; page-break-inside: avoid; }
+      #topbar { position: static !important; border: 0 !important; padding: 0 !important; }
+      .stats { display: flex !important; flex-wrap: nowrap !important; margin: 4px 0 !important; gap: 0 !important; }
+      .stat { min-width: 0 !important; flex: 1 1 0 !important; padding: 3px 6px !important; font-size: 8pt !important; }
+      .stat b { font-size: 10pt !important; }
+      h2, #form h2, #designOut h2, .panel h2 { margin: 6px 0 2px !important; padding: 2px 4px !important; font-size: 8.5pt !important; }
+      /* One parameter per row: Symbol | Parameter | Requirement | Input | Unit | Status (Recommended dropped) */
+      #form .fgrid { display: block !important; width: 100% !important; }
+      #form .fgrid > * { padding: 0 !important; border-bottom: 0.5pt solid #ddd !important; }
+      #form .colhead { display: grid !important;
+        grid-template-columns: 28px 1.35fr 1.1fr 0.95fr 32px 36px !important;
+        grid-template-areas: "sym lab req inp unit st" !important;
+        column-gap: 4px !important; padding: 1px 0 !important; margin: 2px 0 0 !important;
+        font-size: 7.5pt !important; font-weight: 700 !important; }
+      #form .colhead > :nth-child(1) { grid-area: sym !important; }
+      #form .colhead > :nth-child(2) { grid-area: lab !important; }
+      #form .colhead > :nth-child(3) { grid-area: req !important; }
+      #form .colhead > :nth-child(4) { display: none !important; } /* Recommended header */
+      #form .colhead > :nth-child(5) { grid-area: inp !important; }
+      #form .colhead > :nth-child(6) { grid-area: unit !important; }
+      #form .colhead > :nth-child(7) { grid-area: st !important; text-align: center !important; }
+      #form label.row, #form label.row:has(> .sym:empty), #form label.row:has(> select),
+      #form .read, #form label.row[data-mark], #form .fgrid > label.row[data-mark="stage"],
+      #form .fgrid > label.row[data-mark="shackle"], #form .fgrid > label.row[data-mark="rope"],
+      #form .read[data-mark="ml"] {
+        display: grid !important; width: 100% !important; grid-column: auto !important;
+        grid-template-columns: 28px 1.35fr 1.1fr 0.95fr 32px 36px !important;
+        grid-template-areas: "sym lab req inp unit st" !important;
+        column-gap: 4px !important; row-gap: 0 !important; align-items: center !important;
+        padding: 0.5px 0 !important; font-size: 8pt !important;
+      }
+      #form label.row > .sym, #form .read > .sym { grid-area: sym !important; display: block !important; font-size: 8pt !important; }
+      #form label.row > :nth-child(2), #form .read > :nth-child(2) { grid-area: lab !important; font-size: 8pt !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+      #form .req { grid-area: req !important; display: block !important; font-size: 7.5pt !important; color: #555 !important;
+        white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+      #form .req:empty { visibility: hidden !important; }
+      #form .req:not(:empty)::before, #form .rec:not(:empty)::before { content: none !important; }
+      #form .rec { display: none !important; } /* drop Recommended on paper */
+      #form label.row > input, #form label.row > select, #form .read > b[data-val], #form .read > b {
+        grid-area: inp !important; grid-column: auto !important; grid-row: auto !important;
+        width: 100% !important; min-width: 0 !important; font-size: 8pt !important; padding: 1px 3px !important;
+        background: #FFF2CC !important; color: #7F3F00 !important; border: 0 !important;
+        -webkit-appearance: none !important; appearance: none !important; background-image: none !important;
+      }
+      #form label.row > .unit, #form .read > .unit { grid-area: unit !important; font-size: 7.5pt !important; }
+      #form .stat2, #form .hstat { grid-area: st !important; font-size: 7.5pt !important; text-align: center !important; }
+      #form h2 .hstat { float: right; }
+      .lsnote { padding: 3px 6px !important; margin: 2px 0 4px !important; font-size: 7.5pt !important; }
+      .lsnote .lsrow { grid-template-columns: 72px minmax(0, 1fr) !important; }
+      .lsnote .lslabel { font-size: 7pt !important; }
+      .lsnote .lsbody.order { font-size: 7.5pt !important; }
+      /* Figures after tables, two per row, compact */
+      .drawings { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 6px !important; margin-top: 4px !important; }
+      .panel { break-inside: avoid; page-break-inside: avoid; padding: 4px !important; }
+      table, .stat, .lsnote, .gaprep, tr, h2, #topbar .stats { break-inside: avoid; page-break-inside: avoid; }
       .tscroll { overflow: visible !important; max-height: none !important; }
-      input, select { background: #FFF2CC !important; color: #7F3F00 !important; border: 0 !important; -webkit-appearance: none; appearance: none; background-image: none !important; }
-      select { padding-right: 6px; }
-      #views .drawings .panel svg { max-height: 2.6in; width: auto; max-width: 100%; }
-      #views .panel.front svg { max-height: 3.0in; }
-      #views .panel.bowp svg { max-height: 1.2in; }
-      .shkfig .shkimgwrap { max-width: 1.4in; width: 1.4in; }
-      .shkfig .shkimgwrap img { max-height: 2.8in; }
-      .stats { margin: 6px 0; }
-      .stat { min-width: 0; flex: 1; }
-      .printmeta { margin: 2px 0 0; font-size: 10px; color: #555; }
-      .printftr { display: none; }
-      h2, #form h2, #designOut h2, .panel h2 { margin: 8px 0 2px; padding: 2px 6px; }
-      .lsnote { padding: 4px 8px; margin: 2px 0 4px; }
-      .fgrid > * { padding: 0; }
-      #designOut { margin-top: 4px; }
-      .gaprep { break-before: avoid; }
-      #eqs .tscroll + .tscroll { break-before: avoid; }
+      table, th, td { font-size: 7.5pt !important; padding: 1px 4px !important; }
+      #views .drawings .panel svg { max-height: 1.85in !important; width: auto !important; max-width: 100% !important; }
+      #views .panel.front svg { max-height: 2.1in !important; }
+      #views .panel.bowp svg { max-height: 0.9in !important; }
+      .shkfig { gap: 4px !important; }
+      .shkfig .shkimgwrap { max-width: 1.15in !important; width: 1.15in !important; }
+      .shkfig .shkimgwrap img { max-height: 2.1in !important; }
+      .shkfig .shkdims table { font-size: 7.5pt !important; }
+      .gaprep { margin-top: 4px !important; font-size: 7.5pt !important; }
+      .gaprep th, .gaprep td { padding: 1px 3px !important; font-size: 7.5pt !important; }
+      #designOut { margin-top: 2px !important; }
+      #designOut table { font-size: 7.5pt !important; }
     }
 
     /* ---------- Spreadsheet look (matches Kalun's DNV 2.7-1 workbook) ---------- */
@@ -1629,226 +1672,122 @@
       el.textContent = modeLabel + " · " + when;
     }
 
-    function trialScore(patch) {
-      try {
-        const base = mode === "check" ? Object.assign({}, inputs, patch) : Object.assign({}, inputs, patch);
-        if (mode === "check") {
-          const resolved = resolvedCheck(base);
-          const sc = doScore(resolved.inp);
-          const ls = resolved.ls;
-          let ok = !!(sc && !sc.block && sc.pass);
-          if (ok && ls) {
-            if (ls.shackle && ls.shackle.utilisation > 1) ok = false;
-            if (ls.leg && (ls.leg.util > 1 || ls.leg.too_small)) ok = false;
+    function plainShortfall(provided, required, uc, unitHint) {
+      const u = (uc === null || uc === undefined) ? null : Number(uc);
+      const nums = (s) => String(s).match(/-?\d+(?:\.\d+)?/g);
+      const pN = nums(provided), rN = nums(required);
+      const unitFrom = (s) => {
+        const m = String(s).match(/\b(ksi|in|t|lb|deg)\b/i);
+        return m ? m[1].toLowerCase() : (unitHint || "");
+      };
+      const unit = unitFrom(provided) || unitFrom(required) || unitHint || "";
+      const req = String(required);
+      if (u !== null && Number.isFinite(u) && u > 1 && pN && rN) {
+        const pv = Number(pN[0]), rv = Number(rN[0]);
+        if (Number.isFinite(pv) && Number.isFinite(rv)) {
+          if (/≥|>=/.test(req) || /min/i.test(req)) {
+            const d = rv - pv;
+            if (d > 0) return fmt(d, 3) + (unit ? " " + unit : "") + " short";
           }
-          return { ok, sc, ls, inp: resolved.inp };
+          if (/≤|<=/.test(req) || /max/i.test(req)) {
+            const d = pv - rv;
+            if (d > 0) return fmt(d, 3) + (unit ? " " + unit : "") + " over";
+          }
+          // stress / capacity style: provided > limit
+          if (unit === "ksi" || unit === "t" || unit === "lb") {
+            const d = pv - rv;
+            if (d > 0) return fmt(d, 3) + " " + unit + " over";
+          }
+          // R range: R below R_min
+          if (rN.length >= 2 && /–|-/.test(req)) {
+            const lo = Number(rN[0]), hi = Number(rN[1]), R = Number(pN[0]);
+            if (R < lo) return fmt(lo - R, 3) + " in short of Rmin";
+            if (R > hi) return fmt(R - hi, 3) + " in over Rmax";
+          }
+          const d = Math.abs(pv - rv);
+          return fmt(d, 3) + (unit ? " " + unit : "");
         }
-        const sc = doScore(base);
-        return { ok: !!(sc && !sc.block && sc.pass), sc, ls: null, inp: base };
-      } catch (e) {
-        return { ok: false, sc: null, ls: null, inp: null, err: String(e) };
       }
-    }
-
-    function namedOk(sc, failName) {
-      if (!sc || sc.block) return false;
-      const n = String(failName || "");
-      const row = (sc.rows || []).find((r) => n === r.name || chipName(r.name) === n || r.name.startsWith(n) || n.startsWith(chipName(r.name)));
-      if (row) return !!row.ok;
-      const fit = (sc.fits || []).find((f) => n === f.name || chipName(f.name) === n || f.name.startsWith(n) || n.startsWith(chipName(f.name)));
-      if (fit) return !!fit.ok;
-      if (/Shackle WLL/i.test(n)) return true; // handled via ls in caller
-      return false;
-    }
-
-    function stepMin(field, start, lo, hi, step, extra, failName, allowDown) {
-      const s = Number(start);
-      if (!Number.isFinite(s)) return null;
-      const vals = [];
-      const a = allowDown ? Math.min(lo, s) : Math.max(lo, s);
-      const b = hi;
-      if (allowDown) {
-        for (let v = s; v >= lo - 1e-9; v = Math.round((v - step) * 1e6) / 1e6) vals.push(v);
-      } else {
-        for (let v = a; v <= b + 1e-9; v = Math.round((v + step) * 1e6) / 1e6) vals.push(v);
+      if (u === Infinity) {
+        if (pN && rN) {
+          const pv = Number(pN[0]), rv = Number(rN[0]);
+          if (Number.isFinite(pv) && Number.isFinite(rv) && /≥|>=/.test(req))
+            return fmt(rv - pv, 3) + (unit ? " " + unit : "") + " short";
+        }
+        return "gap closed";
       }
-      if (field === "t" && PadEye.PLATE_THICKNESSES) {
-        PadEye.PLATE_THICKNESSES.forEach((p) => { if (p >= lo - 1e-9 && p <= hi + 1e-9) vals.push(p); });
-      }
-      const uniq = [...new Set(vals.map((v) => +v.toFixed(6)))].sort((a, b) => allowDown ? b - a : a - b);
-      for (const v of uniq) {
-        if (!allowDown && v + 1e-9 < s) continue;
-        if (allowDown && v - 1e-9 > s) continue;
-        const patch = Object.assign({}, extra || {}, { [field]: String(v) });
-        if (field === "R" && extra && extra.syncH) patch.h = String(v);
-        const r = trialScore(patch);
-        if (!r.sc) continue;
-        if (failName) {
-          if (namedOk(r.sc, failName)) return v;
-        } else if (r.ok) return v;
-      }
-      return null;
-    }
-
-    function nextPassingShackle(curName, failName) {
-      const list = (catalog.shackles || []).map((s) => s.value);
-      const i0 = Math.max(0, list.indexOf(curName));
-      const order = list.slice(i0).concat(list.slice(0, i0));
-      for (const name of order) {
-        const r = trialScore({ shackle: name });
-        if (!r.sc) continue;
-        if (failName ? namedOk(r.sc, failName) : r.ok) return name;
-      }
-      return null;
-    }
-
-    function nextPassingRope(cur, failName) {
-      const list = catalog.ropes || [];
-      const i0 = Math.max(0, list.indexOf(cur));
-      for (let i = i0; i < list.length; i++) {
-        const r = trialScore({ rope: list[i] });
-        if (!r.sc) continue;
-        if (failName ? namedOk(r.sc, failName) : r.ok) return list[i];
-      }
-      return null;
-    }
-
-    function gapHintFor(failName, sc, inp) {
-      const hints = [];
-      const step = PadEye.DESIGN_STEP_IN || 0.0625;
-      const t0 = Number(inp.t), R0 = Number(inp.R), b0 = Number(inp.b), h0 = Number(inp.h), tc0 = Number(inp.tc) || 0;
-      const sh = sc && sc.shackle ? sc.shackle : null;
-      const A = sh ? sh.A : 4;
-      const n = String(failName || "");
-      const theta = Number(inp.theta);
-      if (/Sling in line/i.test(n) && Number.isFinite(theta)) {
-        hints.push(`set tilt = ${fmt(90 - theta, 1)} deg (= β)`);
-        return hints.join("; ");
-      }
-      if (/Tear-out|Eq\. 4\.13/i.test(n)) {
-        const mR = stepMin("R", R0, R0, R0 + 8, step, { syncH: true }, n);
-        if (mR != null && mR > R0 + 1e-9) hints.push(`min R ${fmt(mR, 3)} in`);
-        const mt = stepMin("t", t0, t0, A, step, null, n);
-        if (mt != null && mt > t0 + 1e-9) hints.push(`min t ${fmt(mt, 3)} in`);
-      }
-      if (/Contact|Eq\. 4\.14/i.test(n)) {
-        const mt = stepMin("t", t0, t0, A, step, null, n);
-        if (mt != null && mt > t0 + 1e-9) hints.push(`min t ${fmt(mt, 3)} in`);
-        else hints.push("increase t or add cheeks (t+2tc)");
-      }
-      if (/Base/i.test(n)) {
-        const mb = stepMin("b", b0, b0, Math.max(b0 + 20, 24), step, null, n);
-        if (mb != null && mb > b0 + 1e-9) hints.push(`min b ${fmt(mb, 3)} in`);
-        const mt = stepMin("t", t0, t0, A, step, null, n);
-        if (mt != null && mt > t0 + 1e-9) hints.push(`min t ${fmt(mt, 3)} in`);
-      }
-      if (/Thickness >= 75|t>=0\.75A/i.test(n)) {
-        const need = 0.75 * A - 2 * tc0;
-        const mt = stepMin("t", t0, Math.max(t0, need), A - 2 * tc0 + step, step, null, n);
-        if (mt != null) hints.push(`min t ${fmt(mt, 3)} in`);
-        const ns = nextPassingShackle(inp.shackle, n);
-        if (ns && ns !== inp.shackle) hints.push(`shackle ${ns}`);
-      }
-      if (/Thickness fits|Jaw fit/i.test(n)) {
-        hints.push("reduce t or tc, or larger-jaw shackle");
-        const ns = nextPassingShackle(inp.shackle, n);
-        if (ns && ns !== inp.shackle) hints.push(`shackle ${ns}`);
-      }
-      if (/Hole clearance/i.test(n)) {
-        hints.push("smaller Dh (max ~1.06×pin) or larger-pin shackle");
-        const ns = nextPassingShackle(inp.shackle, n);
-        if (ns && ns !== inp.shackle) hints.push(`shackle ${ns}`);
-      }
-      if (/Hole clears/i.test(n)) {
-        hints.push("larger Dh (≥1.03×pin)");
-      }
-      if (/Bow gap/i.test(n)) {
-        const mR = stepMin("R", R0, Math.max(step, R0 - 6), R0, step, { syncH: true }, n, true);
-        if (mR != null && mR < R0 - 1e-9) hints.push(`max R ${fmt(mR, 3)} in`);
-        const nr = nextPassingRope(inp.rope, n);
-        if (nr && nr !== inp.rope) hints.push(`rope ${nr}`);
-        const ns = nextPassingShackle(inp.shackle, n);
-        if (ns && ns !== inp.shackle) hints.push(`shackle ${ns}`);
-      }
-      if (/R within|R range/i.test(n)) {
-        const mRhi = stepMin("R", R0, Math.max(step, R0 - 6), R0, step, { syncH: true }, n, true);
-        const mRlo = stepMin("R", R0, R0, R0 + 6, step, { syncH: true }, n);
-        if (mRhi != null && mRhi < R0 - 1e-9) hints.push(`R ${fmt(mRhi, 3)} in`);
-        else if (mRlo != null && mRlo > R0 + 1e-9) hints.push(`R ${fmt(mRlo, 3)} in`);
-        const mt = stepMin("t", t0, t0, A, step, null, n);
-        if (mt != null && mt > t0 + 1e-9) hints.push(`min t ${fmt(mt, 3)} in`);
-      }
-      if (/Thimble/i.test(n)) {
-        const nr = nextPassingRope(inp.rope, n);
-        if (nr && nr !== inp.rope) hints.push(`rope ${nr}`);
-        const ns = nextPassingShackle(inp.shackle, n);
-        if (ns && ns !== inp.shackle) hints.push(`shackle ${ns}`);
-      }
-      if (/Shackle WLL|Rope WLL|Master link|Forerunner/i.test(n)) {
-        const ns = nextPassingShackle(inp.shackle);
-        if (ns && ns !== inp.shackle) hints.push(`shackle ${ns}`);
-        const nr = nextPassingRope(inp.rope);
-        if (nr && nr !== inp.rope) hints.push(`rope ${nr}`);
-      }
-      if (/Cheek/i.test(n)) hints.push("set cheek Rc ≤ R, or omit cheeks");
-      return hints.length ? hints.join("; ") : "—";
+      return "does not meet";
     }
 
     function buildGapRows() {
-      if (mode !== "check" || !score) return { rows: [], allPass: false, margin: null };
-      const inp = (() => { try { return resolvedCheck(inputs).inp; } catch (e) { return Object.assign({}, inputs); } })();
+      if (mode !== "check" || !score) return { rows: [], allPass: false, margin: null, blocked: true };
       const rows = [];
-      const addFail = (name, provided, required, uc, unit, hint) => {
-        let shortfall = "", pct = "";
+      const add = (name, provided, required, uc, ok, unit) => {
         const u = (uc === null || uc === undefined) ? null : Number(uc);
-        if (u !== null && Number.isFinite(u) && u > 1) {
-          pct = ((u - 1) * 100).toFixed(1) + "%";
-          const pv = Number(provided), rv = Number(required);
-          if (Number.isFinite(pv) && Number.isFinite(rv)) shortfall = fmt(pv - rv, 3) + (unit ? " " + unit : "");
-          else shortfall = "UC−1";
-        } else if (u === Infinity) { pct = "∞"; shortfall = "n/a"; }
-        else { pct = "fail"; shortfall = "n/a"; }
-        rows.push({ name, provided, required, uc: u, shortfall, pct, hint, ok: false });
+        let pct = "";
+        if (u !== null && Number.isFinite(u)) pct = ((u - 1) * 100).toFixed(1) + "%";
+        else if (u === Infinity) pct = "∞";
+        let delta;
+        if (ok) {
+          // margin: how much spare vs limit
+          if (u !== null && Number.isFinite(u)) {
+            const spare = 1 - u;
+            delta = spare >= 0
+              ? ((spare * 100).toFixed(1) + "% margin")
+              : plainShortfall(provided, required, u, unit);
+          } else {
+            delta = "ok";
+          }
+        } else {
+          delta = plainShortfall(provided, required, u, unit);
+        }
+        rows.push({ name, provided, required, uc: u, delta, pct, ok: !!ok });
       };
-      (score.rows || []).forEach((r) => {
-        if (r.ok) return;
-        addFail(chipName(r.name), fmt(r.value, 3), fmt(r.limit, 3), r.util, "ksi", gapHintFor(r.name, score, inp));
-      });
-      // lifting set WLL fails
-      if (checkLs) {
-        const ls = checkLs;
-        if (ls.shackle && ls.shackle.utilisation > 1)
-          addFail("Shackle WLL", fmt(ls.wll_req_t, 3) + " t", fmt(ls.shackle.wll_dnv, 3) + " t", ls.shackle.utilisation, "t", gapHintFor("Shackle WLL", score, inp));
-        if (ls.leg && ls.leg.util > 1)
-          addFail("Rope WLL", fmt(ls.leg.util * ls.leg.wll_lb, 0) + " lb", fmt(ls.leg.wll_lb, 0) + " lb", ls.leg.util, "lb", gapHintFor("Rope WLL", score, inp));
-        if (ls.master_link && ls.master_link.util > 1)
-          addFail("Master link WLL", fmt(ls.master_link.util * ls.master_link.wll_lb, 0) + " lb", fmt(ls.master_link.wll_lb, 0) + " lb", ls.master_link.util, "lb", gapHintFor("Master link", score, inp));
-      }
-      (score.fits || []).forEach((f) => {
-        if (f.ok) return;
-        // reuse ucRows parsing
-        const t = f.text || "";
-        let provided = t, required = "", uc = null;
-        const m = (re) => t.match(re); let k;
+      // Parse fit text into provided/required/uc (same as before)
+      const parseFit = (f) => {
+        const tx = f.text || "";
+        let provided = tx, required = "", uc = null;
+        const m = (re) => tx.match(re); let k;
         if ((k = m(/^Dh ([\d.]+) >= ([\d.]+)/))) { provided = k[1] + " in"; required = "≥ " + k[2] + " in"; uc = Number(k[2]) / Number(k[1]); }
         else if ((k = m(/^Dh ([\d.]+) <= ([\d.]+)/))) { provided = k[1] + " in"; required = "≤ " + k[2] + " in"; uc = Number(k[1]) / Number(k[2]); }
         else if ((k = m(/= ([\d.]+) <= A ([\d.]+)/))) { provided = k[1] + " in"; required = "≤ " + k[2] + " in"; uc = Number(k[1]) / Number(k[2]); }
         else if ((k = m(/= ([\d.]+) >= 0.75 A = ([\d.]+)/))) { provided = k[1] + " in"; required = "≥ " + k[2] + " in"; uc = Number(k[2]) / Number(k[1]); }
-        else if ((k = m(/Gap_min ([-\d.]+) >= tolerance ([\d.]+)/))) { provided = k[1] + " in"; required = "≥ " + k[2] + " in"; uc = Number(k[1]) > 0 ? Number(k[2]) / Number(k[1]) : Infinity; }
+        else if ((k = m(/Gap_min ([-\d.]+) >= tolerance ([\d.]+)/))) { provided = k[1] + " in"; required = "≥ " + k[2] + " in"; uc = Number(k[1]) > 0 ? Number(k[2]) / Number(k[1]) : (Number(k[2]) > 0 || Number(k[1]) < 0 ? Infinity : 0); }
         else if ((k = m(/R_min ([\d.]+).*<= R ([\d.]+).*<= R_max ([-\d.]+)/))) {
           provided = k[2] + " in"; required = k[1] + "–" + k[3] + " in";
           uc = Math.max(Number(k[1]) / Number(k[2]), Number(k[3]) > 0 ? Number(k[2]) / Number(k[3]) : Infinity);
         }
         else if ((k = m(/^Rc ([\d.]+) <= R ([\d.]+)/))) { provided = k[1] + " in"; required = "≤ " + k[2] + " in"; uc = Number(k[1]) / Number(k[2]); }
-        addFail(chipName(f.name), provided, required || "see values", uc, "", gapHintFor(f.name, score, inp));
+        else if ((k = m(/bow dia D ([\d.]+) <= thimble D ([\d.]+); thimble width E ([\d.]+) <= bow inside E ([\d.]+)/))) {
+          provided = "D " + k[1] + " E " + k[3] + " in"; required = "D ≤ " + k[2] + ", E ≤ " + k[4] + " in";
+          uc = Math.max(Number(k[1]) / Number(k[2]), Number(k[3]) / Number(k[4]));
+        }
+        else if ((k = m(/sling ([\d.]+) deg.*<= ([\d.]+)/))) { provided = k[1] + " deg"; required = "≤ " + k[2] + " deg"; uc = Number(k[1]) / Number(k[2]); }
+        else if (/no cheek/i.test(tx)) { provided = "none"; required = "—"; uc = 0; }
+        return { provided, required: required || "see values", uc };
+      };
+
+      if (score.block) return { rows: [], allPass: false, margin: null, blocked: true };
+
+      (score.rows || []).forEach((r) => {
+        add(chipName(r.name), fmt(r.value, 3), fmt(r.limit, 3), r.util, r.ok, "ksi");
       });
-      let margin = null;
-      if (!rows.length && score && !score.block) {
-        const ucs = (score.rows || []).map((r) => r.util).filter((u) => typeof u === "number" && Number.isFinite(u));
-        if (ucs.length) margin = Math.min(...ucs.map((u) => 1 - u));
+      if (checkLs) {
+        const ls = checkLs;
+        if (ls.leg) add("Rope WLL", fmt(ls.leg.util * ls.leg.wll_lb, 0) + " lb", fmt(ls.leg.wll_lb, 0) + " lb", ls.leg.util, ls.leg.util <= 1 && !ls.leg.too_small, "lb");
+        if (ls.master_link) add("Master link WLL", fmt(ls.master_link.util * ls.master_link.wll_lb, 0) + " lb", fmt(ls.master_link.wll_lb, 0) + " lb", ls.master_link.util, ls.master_link.util <= 1, "lb");
+        if (ls.forerunner) add("Forerunner WLL", fmt(ls.forerunner.util * ls.forerunner.wll_lb, 0) + " lb", fmt(ls.forerunner.wll_lb, 0) + " lb", ls.forerunner.util, ls.forerunner.util <= 1, "lb");
+        if (ls.shackle) add("Shackle WLL", fmt(ls.wll_req_t, 3) + " t", fmt(ls.shackle.wll_dnv, 3) + " t", ls.shackle.utilisation, ls.shackle.utilisation <= 1, "t");
       }
-      const allPass = !rows.length && !!(score && !score.block && score.pass);
-      return { rows, allPass, margin, blocked: !!(score && score.block) };
+      (score.fits || []).forEach((f) => {
+        const p = parseFit(f);
+        add(chipName(f.name), p.provided, p.required, p.uc, f.ok, "in");
+      });
+
+      const ucs = rows.map((r) => r.uc).filter((u) => typeof u === "number" && Number.isFinite(u));
+      const margin = ucs.length ? Math.min(...ucs.map((u) => 1 - u)) : null;
+      const allPass = rows.length > 0 && rows.every((r) => r.ok);
+      return { rows, allPass, margin, blocked: false };
     }
 
     function paintGapReport() {
@@ -1859,20 +1798,22 @@
       host.hidden = false;
       const g = buildGapRows();
       if (g.blocked) {
-        host.innerHTML = `<h2>Gap report</h2><p class="gapfail">Not scored: ${esc(score.block || "blocked")}</p>`;
+        host.innerHTML = `<h2>Gap report</h2><p class="gapfail">Not scored: ${esc((score && score.block) || "blocked")}</p>`;
         return;
       }
-      if (g.allPass || !g.rows.length) {
-        const m = g.margin != null && Number.isFinite(g.margin) ? ` Smallest margin ${(g.margin * 100).toFixed(1)}% of limit.` : "";
-        host.innerHTML = `<h2>Gap report</h2><div class="gapok">No gaps: all checks pass.${m}</div>`;
+      if (!g.rows.length) {
+        host.innerHTML = `<h2>Gap report</h2><div class="gapok">No checks to report.</div>`;
         return;
       }
-      const head = `<h2>Gap report</h2><table><tr><th>Check</th><th>Provided</th><th>Required</th><th>UC</th><th>Shortfall</th><th>%</th><th>Min to pass</th></tr>`;
+      const head = `<h2>Gap report</h2><table><tr><th>Check</th><th>Provided</th><th>Required</th><th>UC</th><th>Margin / shortfall</th><th>Status</th></tr>`;
       const body = g.rows.map((r) => {
         const u = r.uc == null ? "" : Number.isFinite(r.uc) ? fmt(r.uc, 3) : "∞";
-        return `<tr class="bad"><td>${esc(r.name)}</td><td class="num">${esc(String(r.provided))}</td><td class="num">${esc(String(r.required))}</td><td class="num">${u}</td><td class="num">${esc(r.shortfall)}</td><td class="num">${esc(r.pct)}</td><td>${esc(r.hint)}</td></tr>`;
+        return `<tr class="${r.ok ? "" : "bad"}"><td>${esc(r.name)}</td><td class="num">${esc(String(r.provided))}</td><td class="num">${esc(String(r.required))}</td><td class="num">${u}</td><td class="num">${esc(r.delta)}</td><td class="${r.ok ? "" : "gapfail"}">${r.ok ? "PASS" : "FAIL"}</td></tr>`;
       }).join("");
-      host.innerHTML = head + body + "</table>";
+      const foot = g.allPass
+        ? `<caption class="gapok" style="caption-side:bottom;text-align:left;padding:4px 0;">No gaps: all checks pass.${g.margin != null && Number.isFinite(g.margin) ? " Smallest margin " + (g.margin * 100).toFixed(1) + "% of limit." : ""}</caption>`
+        : "";
+      host.innerHTML = head + body + "</table>" + foot;
     }
 
     function tables() {

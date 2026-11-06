@@ -1421,12 +1421,13 @@
     }
 
     function outline(b, h, R) {
-      const half = b / 2, top = h + R, steps = 72, right = [];
-      for (let i = 0; i <= steps; i++) {
-        const y = top * i / steps, dy = y - h;
-        const xCirc = Math.abs(dy) <= R ? Math.sqrt(Math.max(0, R * R - dy * dy)) : 0;
-        right.push([y <= h ? Math.max(half, xCirc) : xCirc, y]);
-      }
+      // Straight sides from the base corners tangent to the head arc. No shoulders.
+      const half = b / 2, dx = half, dy = -h, d = Math.hypot(dx, dy), right = [[half, 0]];
+      let a0 = 0;
+      if (d > R) a0 = Math.atan2(dy, dx) + Math.acos(R / d);
+      else right.push([half, h]);
+      const steps = 48;
+      for (let i = 0; i <= steps; i++) { const a = a0 + (Math.PI / 2 - a0) * i / steps; right.push([R * Math.cos(a), h + R * Math.sin(a)]); }
       return right.concat(right.map(([x, y]) => [-x, y]).reverse());
     }
 

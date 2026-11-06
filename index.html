@@ -515,8 +515,8 @@
     <div id="gapReport" class="gaprep" hidden></div>
     </div>
   </main>
-  <script src="calc.js"></script>
-  <script src="lifting_set.js"></script>
+  <script src="calc.js?v=2636d99b"></script>
+  <script src="lifting_set.js?v=2636d99b"></script>
   <script>
     const params = new URLSearchParams(location.search);
     const project = params.get("project") || "";
@@ -797,10 +797,11 @@
       return `<label class="row${on}" data-mark="${id}"><span class="sym">${symbol}</span><span>${label}</span><select data-dkey="${id}" title="${esc((options.find(([v]) => v === current) || ["", ""])[1])}">${opts}</select><span></span><span class="rec" data-rec="${id}"></span></label>`;
     }
     // Lifting set row inputs (design mode). Blank / Auto-pick = the recommended value, same as before.
-    function lsOver() {
-      const n = (k) => { const v = String(dz[k] ?? "").trim(); return v === "" ? null : Number(v); };
-      return { mlStock: dz.mlset && dz.mlset !== "auto" ? dz.mlset : null,
-        foreLabel: dz.foreRope && dz.foreRope !== "auto" ? dz.foreRope : null,
+    function lsOver(src) {
+      src = src || dz;
+      const n = (k) => { const v = String(src[k] ?? "").trim(); return v === "" ? null : Number(v); };
+      return { mlStock: src.mlset && src.mlset !== "auto" ? src.mlset : null,
+        foreLabel: src.foreRope && src.foreRope !== "auto" ? src.foreRope : null,
         foreLenIn: n("foreLen"), slingLenIn: n("slingLin") };
     }
     function drawDesignForm() {
@@ -834,7 +835,7 @@
         ${H("set", "Lifting set")}<div class="fgrid">
         ${dselect("stdrope", "", "Wire rope size", ropeOpts, dz.rope).replace('data-dkey="stdrope"', 'data-dkey="rope"').replace('data-rec="stdrope"', 'data-rec="rope"').replace('data-mark="stdrope"', 'data-mark="rope"')}
         ${dfield("slingLin", "", "Sling leg length", "in", "auto")}
-        ${dselect("mlset", "", "Master link", [["auto", "Auto-pick"]].concat(LiftingSet.CROSBY_A1346.map((r) => [r[0], `A-1346 stock ${r[0]} (WLL ${r[1].toLocaleString("en-US")} lb)`])), dz.mlset || "auto")}
+        ${dselect("mlset", "", "Master link", [["auto", "Auto-pick"]].concat((LiftingSet.CROSBY_A1346 || []).map((r) => [r[0], `A-1346 stock ${r[0]} (WLL ${r[1].toLocaleString("en-US")} lb)`])), dz.mlset || "auto")}
         ${dselect("fore", "", "Forerunner", [["0", "None"], ["1", "Add forerunner"]], dz.fore)}
         ${dz.fore === "1" ? dselect("foreRope", "", "Forerunner rope size", ropeOpts, dz.foreRope || "auto") + dfield("foreLen", "", "Forerunner length", "in", "auto") : ""}
         ${dfield("tol", "", "Extra bow gap allowance", "in")}
@@ -1206,7 +1207,7 @@
         const hLo = (ori === LiftingSet.LAID_OVER) ? Number(String(inp.h ?? "").replace(/,/g, "")) : null;
         const tiltLo = (ori === LiftingSet.LAID_OVER && String(inp.tilt ?? "").trim() !== "") ? Number(inp.tilt) : null;
         const fp = footprintOpts(inp, n, theta, ori, Number.isFinite(hLo) ? hLo : null, Number.isFinite(tiltLo) ? tiltLo : null);
-        return LiftingSet.design(Object.assign({ mgwLb: mgw, nLegs: n, angleHDeg: theta, k, forerunner: inp.fore === "1", shackle: shOpt, ropeLabel: ropeChoice }, fp));
+        return LiftingSet.design(Object.assign({ mgwLb: mgw, nLegs: n, angleHDeg: theta, k, forerunner: inp.fore === "1", shackle: shOpt, ropeLabel: ropeChoice }, lsOver(inp), fp));
       } catch (e) { return null; }
     }
     // Resolve Auto rope/shackle and cheek-off zeros for scoring; never throws.
@@ -1272,9 +1273,10 @@
         </div>
         ${H("set", "Lifting set")}<div class="fgrid">
         ${cselect("rope", "", "Wire rope size", ropeOpts, inputs.rope || "auto")}
-        ${cread("slingL", "", "Sling leg length", "")}
-        ${cread("ml", "", "Master link", "")}
+        ${cfield("slingLin", "", "Sling leg length", "in", "auto")}
+        ${cselect("mlset", "", "Master link", [["auto", "Auto-pick"]].concat((LiftingSet.CROSBY_A1346 || []).map((r) => [r[0], `A-1346 stock ${r[0]} (WLL ${r[1].toLocaleString("en-US")} lb)`])), inputs.mlset || "auto")}
         ${cselect("fore", "", "Forerunner", [["0", "None"], ["1", "Add forerunner"]], inputs.fore || "0")}
+        ${inputs.fore === "1" ? cselect("foreRope", "", "Forerunner rope size", ropeOpts, inputs.foreRope || "auto") + cfield("foreLen", "", "Forerunner length", "in", "auto") : ""}
         ${cfield("tol", "", "Extra bow gap allowance", "in")}
         </div>
         ${lsNoteHtml()}
@@ -1307,6 +1309,9 @@
         val.slingL = (ls.geo && ls.geo.legs && ls.geo.legs.length) ? LiftingSet.slingLegLengthText(ls) : "";
         if (ls.forerunner) st.fore = P(ls.forerunner.util <= 1);
         if (ls.shackle) st.shackle = P(ls.shackle.utilisation <= 1);
+        if (ls.master_link) st.mlset = st.ml;
+        if (ls.forerunner) { st.foreRope = st.fore; if (ls.forerunner.len_set) st.foreLen = P(ls.forerunner.len_util <= 1); }
+        if (ls.sling_set) st.slingLin = P(ls.sling_set.util <= 1 + 1e-9);
       }
       const fit = (n) => { const f = score && score.fits ? score.fits.find((x) => x.name.startsWith(n)) : null; return f ? P(f.ok) : ""; };
       if (score && score.shackle) { val.jawA = fmt(score.shackle.A, 3); val.pinB = fmt(score.shackle.B, 3); val.lenC = fmt(score.shackle.C, 3); }
@@ -1405,6 +1410,13 @@
           recs.rope = o.ropeLabel;
         }
       } catch (e) { /* leave blank */ }
+      try { const ls = checkLs;
+        if (ls) {
+          if (!recs.rope) { const r = LiftingSet.selectSling(ls.wll_req_t); if (r) recs.rope = r.size; }
+          if (ls.geo && ls.geo.legs && ls.geo.legs.length) { const L = Math.max(...ls.geo.legs.map((g) => g.L)); recs.slingLin = `${fmt(L, 1)} (${LiftingSet.slingLegLengthText(ls)})`; }
+          if (ls.master_link_auto) recs.mlset = `stock ${ls.master_link_auto.stock}`;
+          if (ls.forerunner) { const a = LiftingSet.selectSling(ls.wll_min_t); if (a) recs.foreRope = a.size; recs.foreLen = fmt(ls.forerunner.auto_length, 0); }
+        } } catch (e) { /* leave blank */ }
       document.querySelectorAll("#form [data-rec]").forEach((el) => { el.textContent = recs[el.dataset.rec] ?? ""; });
     }
 

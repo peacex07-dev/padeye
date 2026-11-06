@@ -515,8 +515,8 @@
     <div id="gapReport" class="gaprep" hidden></div>
     </div>
   </main>
-  <script src="calc.js?v=hole1"></script>
-  <script src="lifting_set.js?v=hole1"></script>
+  <script src="calc.js?v=rlim1"></script>
+  <script src="lifting_set.js?v=rlim1"></script>
   <script>
     const params = new URLSearchParams(location.search);
     const project = params.get("project") || "";
@@ -850,6 +850,8 @@
         ${dfield("re", "Re", "Plate yield strength", "ksi")}
         ${dfield("tset", "t", "Plate thickness", "in", "auto")}
         ${dfield("bset", "b", "Base length", "in", "auto")}
+        ${dfield("rLimMin", "", "Main plate radius limit, minimum", "in", "none")}
+        ${dfield("rLimMax", "", "Main plate radius limit, maximum", "in", "none")}
         ${dz.stage === "5" ? dfield("tilt", "", "Plate tilt from vertical", "deg", "auto") : dfield("oop", "φ", "Out of plane angle", "deg")}
         ${dselect("cheek", "", "Cheek plates", [["0", "None"], ["1", "Include"]], dz.cheek)}
         ${dz.cheek === "1" ? dfield("tc", "tc", "Cheek thickness each side", "in") + dfield("Rc", "Rc", "Cheek radius", "in") + dfield("w", "w", "Cheek weld leg", "in") : ""}
@@ -859,7 +861,7 @@
     function dread(id, symbol, label, unit) {
       return `<div class="read${mark === id ? " on" : ""}" data-mark="${id}"><span class="sym">${symbol}</span><span>${label}</span><span class="unit">${unit}</span><b data-val="${id}"></b><span class="rec" data-rec="${id}"></span></div>`;
     }
-    const REQ = { rope: "WLL ≥ WLLs", ml: "WLL ≥ WLLmin", mlset: "WLL ≥ WLLmin", fore: "WLL ≥ WLLmin", foreRope: "WLL ≥ WLLmin", foreLen: "L ≥ required", slingLin: "L ≥ geometry", tol: "thimble fits bow", shackle: "WLLs < SWL",
+    const REQ = { rLimMin: "R ≥ this", rLimMax: "R ≤ this", rope: "WLL ≥ WLLs", ml: "WLL ≥ WLLmin", mlset: "WLL ≥ WLLmin", fore: "WLL ≥ WLLmin", foreRope: "WLL ≥ WLLmin", foreLen: "L ≥ required", slingLin: "L ≥ geometry", tol: "thimble fits bow", shackle: "WLLs < SWL",
       tset: "0.75A ≤ t ≤ A", tc: "t + 2tc ≤ A", Rc: "Rc ≤ R", wllmin: "Table 8-1", k: "≥ 1" };
     function lsNoteHtml() {
       return `<div class="lsnote" data-mark="lsdesc">
@@ -898,6 +900,7 @@
         // Same status fill for a finished design and for an attempted plate (never-stop path).
         if (ls && ls.shackle) st.shackle = P(ls.shackle.utilisation <= 1);
         st.tol = fit("Thimble fits shackle bow");
+        { const q = radLim(); if (q) st.rLimMin = st.rLimMax = q.ok ? "PASS" : "FAIL"; }
         const a = fit("Thickness fits shackle jaw"), b = fit("Thickness >= 75");
         if (a && b) st.tset = P(a === "PASS" && b === "PASS");
         if (dz.cheek === "1") { st.tc = a; st.Rc = fit("Cheek radius"); }
@@ -1290,6 +1293,8 @@
         ${cfield("re", "Re", "Plate yield strength", "ksi")}
         ${cfield("t", "t", "Main plate thickness", "in")}
         ${cfield("R", "R", "Main plate radius", "in")}
+        ${cfield("rLimMin", "", "Main plate radius limit, minimum", "in", "none")}
+        ${cfield("rLimMax", "", "Main plate radius limit, maximum", "in", "none")}
         ${cfield("Dh", "Dh", "Hole diameter", "in")}
         ${cfield("b", "b", "Base width", "in")}
         ${cfield("h", "h", "Hole centre to base", "in")}
@@ -1317,6 +1322,7 @@
       if (score && score.shackle) { val.jawA = fmt(score.shackle.A, 3); val.pinB = fmt(score.shackle.B, 3); val.lenC = fmt(score.shackle.C, 3); }
       if (score && !score.block) {
         st.tol = fit("Thimble fits shackle bow");
+        { const q = radLim(); if (q) st.rLimMin = st.rLimMax = q.ok ? "PASS" : "FAIL"; }
         const a = fit("Thickness fits shackle jaw"), b = fit("Thickness >= 75");
         if (a && b) st.t = P(a === "PASS" && b === "PASS");
         if (inputs.cheek === "1") { st.tc = a; st.Rc = fit("Cheek radius"); }
@@ -1940,6 +1946,7 @@
         if (ls.forerunner) add("Forerunner WLL", fmt(ls.forerunner.wll_lb, 0) + " lb", "≥ " + fmt(ls.forerunner.util * ls.forerunner.wll_lb, 0) + " lb", ls.forerunner.util, ls.forerunner.util <= 1, "lb");
         if (ls.shackle) add("Shackle WLL", fmt(ls.wll_req_t, 3) + " t", fmt(ls.shackle.wll_dnv, 3) + " t", ls.shackle.utilisation, ls.shackle.utilisation <= 1, "t");
       }
+      { const q = radLim(); if (q) add("Plate radius limits", fmt(q.R, 3) + " in", q.lim + " in", q.util, q.ok, "in"); }
       (score.fits || []).forEach((f) => {
         const p = parseFit(f);
         add(chipName(f.name), p.provided, p.required, p.uc, f.ok, "in");
@@ -1977,6 +1984,20 @@
       host.innerHTML = head + body + "</table>" + foot;
     }
 
+    function radLim() {
+      const src = mode === "design" ? dz : inputs;
+      const n = (k) => { const v = String((src && src[k]) ?? "").trim(); return v === "" ? null : Number(v); };
+      const lo = n("rLimMin"), hi = n("rLimMax");
+      if ((lo === null || !Number.isFinite(lo)) && (hi === null || !Number.isFinite(hi))) return null;
+      const dd = designed ? (designed.d || designed.attempt) : null;
+      const R = mode === "design" ? (dd ? Number(dd.R) : NaN) : Number(src.R);
+      if (!Number.isFinite(R) || R <= 0) return null;
+      const L = Number.isFinite(lo) ? lo : null, H = Number.isFinite(hi) ? hi : null;
+      const ok = (L === null || R >= L - 1e-9) && (H === null || R <= H + 1e-9);
+      const util = Math.max(L ? L / R : 0, H ? R / H : 0);
+      const lim = L !== null && H !== null ? `${fmt(L, 3)}–${fmt(H, 3)}` : L !== null ? `≥ ${fmt(L, 3)}` : `≤ ${fmt(H, 3)}`;
+      return { R, lo: L, hi: H, ok, util, lim };
+    }
     function tables() {
       const checks = document.getElementById("checks");
       const fits = document.getElementById("fits");
@@ -1997,8 +2018,9 @@
           shWll.push({ name: "Forerunner WLL, WLLmin vs rope WLL (lb)", value: wmin, limit: lsx.forerunner.wll_lb, util: u, ok: u <= 1 + 1e-9 });
           if (lsx.forerunner.len_set) shWll.push({ name: "Forerunner length, required vs entered (in)", value: lsx.forerunner.need, limit: lsx.forerunner.length, util: lsx.forerunner.len_util, ok: lsx.forerunner.len_util <= 1 + 1e-9 }); }
         if (lsx && lsx.sling_set) shWll.push({ name: "Sling leg length, geometry vs entered (in)", value: lsx.sling_set.need, limit: lsx.sling_set.L, util: lsx.sling_set.util, ok: lsx.sling_set.util <= 1 + 1e-9 }); }
+      { const q = radLim(); if (q) shWll.push({ name: "Main plate radius limits (in)", value: q.R, limit: q.hi !== null ? q.hi : q.lo, limTxt: q.lim, util: q.util, ok: q.ok }); }
       checks.innerHTML = `<tr><th>Check</th><th>Result</th><th>Limit</th><th>Util</th><th>Status</th></tr>` +
-        (score.rows || []).concat(shWll).map(row => `<tr class="${row.ok ? "" : "bad"}"><td>${row.name}</td><td class="num">${fmt(row.value, 3)}</td><td class="num">${fmt(row.limit, 3)}</td><td class="num">${fmt(row.util, 3)}</td><td>${row.ok ? "Pass" : "Fail"}</td></tr>`).join("");
+        (score.rows || []).concat(shWll).map(row => `<tr class="${row.ok ? "" : "bad"}"><td>${row.name}</td><td class="num">${fmt(row.value, 3)}</td><td class="num">${row.limTxt || fmt(row.limit, 3)}</td><td class="num">${fmt(row.util, 3)}</td><td>${row.ok ? "Pass" : "Fail"}</td></tr>`).join("");
       fits.innerHTML = `<tr><th>Fit</th><th>Values</th><th>Status</th></tr>` +
         (score.fits || []).map(row => `<tr class="${row.ok ? "" : "bad"}"><td>${row.name}</td><td>${row.text}</td><td>${row.ok ? "Pass" : "Fail"}</td></tr>`).join("");
       const pass = score.pass === true && shWll.every((r) => r.ok);
@@ -2030,6 +2052,7 @@
         if (ls.forerunner) add("Forerunner WLL, lb", fmt(ls.forerunner.util * ls.forerunner.wll_lb, 0), fmt(ls.forerunner.wll_lb, 0), ls.forerunner.util, ls.forerunner.util <= 1);
         if (ls.shackle) add("Shackle WLL, t", fmt(ls.wll_req_t, 3), fmt(ls.shackle.wll_dnv, 3), ls.shackle.utilisation, ls.shackle.utilisation <= 1);
       }
+      { const q = radLim(); if (score && !score.block && q) add("Plate radius limits", fmt(q.R, 3), q.lim, q.util, q.ok); }
       if (score && score.fits) score.fits.forEach((f) => {
         const t = f.text || "", m = (re) => t.match(re);
         let res = "", lim = "", uc = null, k;

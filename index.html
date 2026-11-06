@@ -924,9 +924,10 @@
         if (!sc || sc.block) return null;
         const us = (sc.rows || []).map((r) => r.util);
         if (o.ls && o.ls.shackle) us.push(o.ls.shackle.utilisation);
-        if (o.ls && o.ls.leg) us.push(o.ls.leg.util);
         if (o.ls && o.ls.master_link) us.push(o.ls.master_link.util);
-        const ok = !!o.d && sc.pass === true && us.every((u) => u <= 1) && (sc.fits || []).every((f) => f.ok);
+        const ropeOk = !(o.ls && o.ls.leg) || (o.ls.leg.util <= 1 && !o.ls.leg.too_small);
+        const ok = !!o.d && sc.pass === true && us.every((u) => u <= 1) && ropeOk && (sc.fits || []).every((f) => f.ok);
+        // label shows this shackle's own governing UC (plate + shackle + master link); the rope does not depend on the shackle
         return { ok, u: Math.max(...us) };
       } catch (e) { return null; } finally { dz.shackle = keep; }
     }
@@ -1389,52 +1390,13 @@
     }
 
     function outline(b, h, R) {
-      // Counter-clockwise tapered pad eye: straight sides from each base end
-      // tangent to the head circle (centre 0,h radius R), then the arc over the top.
-      // No flat shoulders / horizontal ledge for any b vs 2R.
-      const half = Math.max(Number(b) / 2, 1e-9), hh = Math.max(Number(h), 0), rr = Math.max(Number(R), 1e-9);
-      const cx = 0, cy = hh, arcN = 48;
-      function tangentsFrom(px, py) {
-        const vx = px - cx, vy = py - cy;
-        const d2 = vx * vx + vy * vy, d = Math.sqrt(d2);
-        if (!(d > rr + 1e-12)) return null;
-        const scale = (rr * rr) / d2;
-        const hlen = (rr / d2) * Math.sqrt(Math.max(0, d2 - rr * rr));
-        return [
-          [cx + scale * vx + hlen * (-vy), cy + scale * vy + hlen * vx],
-          [cx + scale * vx - hlen * (-vy), cy + scale * vy - hlen * vx],
-        ];
+      const half = b / 2, top = h + R, steps = 72, right = [];
+      for (let i = 0; i <= steps; i++) {
+        const y = top * i / steps, dy = y - h;
+        const xCirc = Math.abs(dy) <= R ? Math.sqrt(Math.max(0, R * R - dy * dy)) : 0;
+        right.push([y <= h ? Math.max(half, xCirc) : xCirc, y]);
       }
-      function cross(ax, ay, bx, by) { return ax * by - ay * bx; }
-      function pickTangent(px, py, wantPositiveCross) {
-        const pair = tangentsFrom(px, py);
-        if (!pair) {
-          // Base corner inside/on circle: meet the circle on the ray from centre through the corner.
-          const vx = px - cx, vy = py - cy, d = Math.hypot(vx, vy) || 1;
-          return [cx + rr * vx / d, cy + rr * vy / d];
-        }
-        for (const [tx, ty] of pair) {
-          const c = cross(tx - px, ty - py, cx - px, cy - py);
-          if (wantPositiveCross ? c > 0 : c < 0) return [tx, ty];
-        }
-        return pair[0];
-      }
-      const [trx, try_] = pickTangent(half, 0, true);
-      const [tlx, tly] = pickTangent(-half, 0, false);
-      let angR = Math.atan2(try_ - cy, trx - cx);
-      let angL = Math.atan2(tly - cy, tlx - cx);
-      while (angL <= angR) angL += 2 * Math.PI;
-      // Ensure the CCW arc passes through the top of the head (+pi/2).
-      let top = Math.PI / 2;
-      while (top < angR) top += 2 * Math.PI;
-      if (top > angL + 1e-9) angL += 2 * Math.PI;
-      const pts = [[half, 0], [trx, try_]];
-      for (let i = 1; i <= arcN; i++) {
-        const a = angR + (angL - angR) * (i / arcN);
-        pts.push([cx + rr * Math.cos(a), cy + rr * Math.sin(a)]);
-      }
-      pts.push([-half, 0], [half, 0]);
-      return pts;
+      return right.concat(right.map(([x, y]) => [-x, y]).reverse());
     }
 
     /** Label placement. Every diagram label is a <text class="lbl"> with an anchor box (data-a = x0,y0,x1,y1).

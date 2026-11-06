@@ -390,14 +390,14 @@
     const H = th[1];
     const tolC = CROSBY_TOL_C[sh.size] || 0.0;
     const tolEff = Math.max(tolC, tolIn || 0.0);
-    const RMin = 3 * P / (2 * ReKsi * t) + Dh / 2;
+    const RMin = 1.5 * Dh;
     let gapMin;
     let RMax;
     let gapFit;
     if (H !== null) {
       const ropeIn = ropeMm / MM_PER_IN;
       gapMin = C + d / 2 - ROut - (Dh - d) / 2 - H - ropeIn;
-      RMax = C + d / 2 - (Dh - d) / 2 - H - ropeIn - tolEff;
+      RMax = Math.min(C + d / 2 - (Dh - d) / 2 - H - ropeIn - tolEff, 2.0 * Dh);
       gapFit = {
         name: "Bow gap (thimble + rope) [4.4.1]",
         ok: gapMin >= tolEff - 1e-9,
@@ -509,11 +509,10 @@
       }
       const tList = (tFixed ? [tFixed] : PLATE_THICKNESSES).filter((p) => JAW_FILL_MIN * A - 1e-9 <= p && p <= A + 1e-9);
       for (const t of tList) {
-        const R = ceilStep(3 * P / (2 * ReKsi * t) + Dh / 2, step);
         const tolEff = Math.max(CROSBY_TOL_C[size] || 0.0, tolIn || 0.0);
         const ropeIn = ropeMm / MM_PER_IN;
-        const RMax = C + d / 2 - (Dh - d) / 2 - th[1] - ropeIn - tolEff;
-        if (R <= RMax + 1e-9) {
+        const RMax = Math.min(C + d / 2 - (Dh - d) / 2 - th[1] - ropeIn - tolEff, 2.0 * Dh);
+        for (let R = ceilStep(1.5 * Dh, step); R <= RMax + 1e-9; R += step) {
           const h = R;
           let b = ceilStep(2 * R, step);
           while (b <= 200) {

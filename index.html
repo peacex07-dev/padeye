@@ -710,7 +710,7 @@
         if (!(ropeLabel in PadEye.ROPE_IN) || !(ropeLabel in PadEye.ROPE_THIMBLE)) {
           throw new Error(`The lifting set needs ${ropeLabel} rope, which has no G-414 thimble in the pad eye tables. Use a pad eye with a different arrangement or check 02_8-3_LiftingSet.py.`);
         }
-        if (out.ls.leg.too_small) throw new Error(`The rope you picked (${ropeLabel}, WLL ${fmt(out.ls.leg.wll_lb, 0)} lb) is below the leg load ${fmt(LiftingSet.tToLb(out.ls.wll_req_t), 0)} lb. Pick a bigger rope or Auto.`);
+        if (out.ls.leg.too_small) out.ropeWarn = `The rope you picked (${ropeLabel}, WLL ${fmt(out.ls.leg.wll_lb, 0)} lb) is below the leg load ${fmt(LiftingSet.tToLb(out.ls.wll_req_t), 0)} lb. Pick a bigger rope or Auto.`; // never stop: plate still built and checked; rope WLL is a CHECKS row
         const ropeMm = PadEye.ROPE_IN[ropeLabel] * PadEye.MM_PER_IN;
         out.ropeLabel = ropeLabel;
         const shackle = dz.shackle === "auto" ? PadEye.SHACKLE_AUTO : dz.shackle;
@@ -1990,11 +1990,18 @@
         : (mode === "check" && checkLs && checkLs.shackle)
           ? [{ name: "Shackle WLL, WLLs vs SWL (t)", value: checkLs.wll_req_t, limit: checkLs.shackle.wll_dnv, util: checkLs.shackle.utilisation, ok: checkLs.shackle.utilisation <= 1 }]
           : [];
+      { const lsx = mode === "design" ? (designed && designed.ls) : checkLs;
+        if (lsx && lsx.leg && Number.isFinite(lsx.leg.wll_lb)) {
+          const req = LiftingSet.tToLb(lsx.wll_req_t), u = req / lsx.leg.wll_lb;
+          shWll.push({ name: "Wire rope WLL, leg load vs rope WLL (lb)", value: req, limit: lsx.leg.wll_lb, util: u, ok: u <= 1 + 1e-9 && !lsx.leg.too_small });
+        } }
       checks.innerHTML = `<tr><th>Check</th><th>Result</th><th>Limit</th><th>Util</th><th>Status</th></tr>` +
         (score.rows || []).concat(shWll).map(row => `<tr class="${row.ok ? "" : "bad"}"><td>${row.name}</td><td class="num">${fmt(row.value, 3)}</td><td class="num">${fmt(row.limit, 3)}</td><td class="num">${fmt(row.util, 3)}</td><td>${row.ok ? "Pass" : "Fail"}</td></tr>`).join("");
       fits.innerHTML = `<tr><th>Fit</th><th>Values</th><th>Status</th></tr>` +
         (score.fits || []).map(row => `<tr class="${row.ok ? "" : "bad"}"><td>${row.name}</td><td>${row.text}</td><td>${row.ok ? "Pass" : "Fail"}</td></tr>`).join("");
-      const pass = score.pass === true;
+      const pass = score.pass === true && shWll.every((r) => r.ok);
+      { const gx = shWll.filter((r) => Number.isFinite(r.util) && !(r.util <= (score.governingU ?? -Infinity))).sort((x, y) => y.util - x.util)[0];
+        if (gx) { score.governingU = gx.util; score.governing = gx.name; } }
       document.getElementById("stats").innerHTML = score.block
         ? `<div class="stat big bad"><b class="fail">FAIL</b><span>Not scored: ${score.block}</span></div>`
         : `<div class="stat big${pass ? "" : " bad"}"><b class="${pass ? "pass" : "fail"}">${pass ? "PASS" : "FAIL"}</b><span>Plate and fits</span></div>

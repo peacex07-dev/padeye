@@ -515,8 +515,8 @@
     <div id="gapReport" class="gaprep" hidden></div>
     </div>
   </main>
-  <script src="calc.js?v=hole36"></script>
-  <script src="lifting_set.js?v=hole36"></script>
+  <script src="calc.js?v=hole1"></script>
+  <script src="lifting_set.js?v=hole1"></script>
   <script>
     const params = new URLSearchParams(location.search);
     const project = params.get("project") || "";
@@ -1324,7 +1324,7 @@
         st.b = chk("Base"); if (inputs.cheek === "1") st.w = chk("Eq. 4.15");
         st.re = P(["Eq. 4.13", "Eq. 4.14", "Base"].every((n) => chk(n) !== "FAIL"));
         if (inputs.stage === "5") st.tilt = fit("Sling in line");
-        st.R = fit("R within"); st.Dh = fit("Hole clears") || fit("Hole clearance");
+        st.R = fit("R within"); st.Dh = fit("Hole clearance");
       }
       if (score && score.block) {
         if (/rope/i.test(score.block)) st.rope = "FAIL";
@@ -1907,7 +1907,8 @@
         const tx = f.text || "";
         let provided = tx, required = "", uc = null;
         const m = (re) => tx.match(re); let k;
-        if ((k = m(/^Dh ([\d.]+) >= ([\d.]+)/))) { provided = k[1] + " in"; required = "≥ " + k[2] + " in"; uc = Number(k[2]) / Number(k[1]); }
+        if ((k = m(/^Dh ([\d.]+) in, (-?[\d.]+) %/))) { provided = k[2] + " %"; required = "≤ 6 %"; uc = Number(k[2]) / 6; }
+        else if ((k = m(/^Dh ([\d.]+) >= ([\d.]+)/))) { provided = k[1] + " in"; required = "≥ " + k[2] + " in"; uc = Number(k[2]) / Number(k[1]); }
         else if ((k = m(/^Dh ([\d.]+) <= ([\d.]+)/))) { provided = k[1] + " in"; required = "≤ " + k[2] + " in"; uc = Number(k[1]) / Number(k[2]); }
         else if ((k = m(/= ([\d.]+) <= A ([\d.]+)/))) { provided = k[1] + " in"; required = "≤ " + k[2] + " in"; uc = Number(k[1]) / Number(k[2]); }
         else if ((k = m(/= ([\d.]+) >= 0.75 A = ([\d.]+)/))) { provided = k[1] + " in"; required = "≥ " + k[2] + " in"; uc = Number(k[2]) / Number(k[1]); }
@@ -2011,7 +2012,7 @@
     }
 
     const CHIPN = [["Eq. 4.13", "Eq 4.13 Tear-out"], ["Eq. 4.14", "Eq 4.14 Contact"], ["Eq. 4.15", "Eq 4.15 Cheek weld"], ["Base", "Base"],
-      ["Hole clears", "Hole clears pin"], ["Hole clearance", "Hole clearance"], ["Thickness fits", "Jaw fit t+2tc<=A"], ["Thickness >=", "t>=0.75A"],
+      ["Hole clearance", "Hole clearance"], ["Thickness fits", "Jaw fit t+2tc<=A"], ["Thickness >=", "t>=0.75A"],
       ["Thimble", "Thimble"], ["Bow gap", "Bow gap"], ["R within", "R range"], ["Cheek radius", "Rc<=R"], ["Sling in line", "Sling in line"]];
     const chipName = (n) => (CHIPN.find(([p]) => n.startsWith(p)) || [0, n])[1];
     function ucRows() {
@@ -2031,7 +2032,8 @@
       if (score && score.fits) score.fits.forEach((f) => {
         const t = f.text || "", m = (re) => t.match(re);
         let res = "", lim = "", uc = null, k;
-        if ((k = m(/^Dh ([\d.]+) >= ([\d.]+)/))) { res = k[1]; lim = "≥ " + k[2]; uc = N(k[2]) / N(k[1]); }
+        if ((k = m(/^Dh ([\d.]+) in, (-?[\d.]+) %/))) { res = k[2] + " %"; lim = "≤ 6 %"; uc = N(k[2]) / 6; }
+        else if ((k = m(/^Dh ([\d.]+) >= ([\d.]+)/))) { res = k[1]; lim = "≥ " + k[2]; uc = N(k[2]) / N(k[1]); }
         else if ((k = m(/^Dh ([\d.]+) <= ([\d.]+)/))) { res = k[1]; lim = "≤ " + k[2]; uc = N(k[1]) / N(k[2]); }
         else if ((k = m(/= ([\d.]+) <= A ([\d.]+)/))) { res = k[1]; lim = "≤ " + k[2]; uc = N(k[1]) / N(k[2]); }
         else if ((k = m(/= ([\d.]+) >= 0.75 A = ([\d.]+)/))) { res = k[1]; lim = "≥ " + k[2]; uc = N(k[2]) / N(k[1]); }

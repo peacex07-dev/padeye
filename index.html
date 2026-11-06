@@ -324,6 +324,7 @@
     label.row[data-mark="stage"], label.row[data-mark="orient"] { grid-template-columns: 44px minmax(0, 1fr) minmax(0, 300px) 0; }
     label.row[data-mark="stage"] > select, label.row[data-mark="orient"] > select { text-overflow: ellipsis; }
     .drawings .panel svg, .drawings #side svg { max-width: 100%; }
+    @media screen and (max-width: 1099px) { .drawings svg { max-width: min(100%, 700px); max-height: 380px; height: auto; margin: 0 auto; } }
     @media (min-width: 1100px) {
       header, main { width: min(1880px, calc(100% - 28px)); }
       main { display: grid; grid-template-columns: minmax(560px, 1fr) minmax(0, 1.05fr); column-gap: 22px; align-items: start; }

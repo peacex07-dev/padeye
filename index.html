@@ -2186,6 +2186,8 @@
       Object.assign(b, { L: "144", B: "144", sxM: "6", syM: "6", sxP: "6", syP: "6", xg: "0", yg: "0", zPe: "104" });
       return b;
     }
+    // Saved page defaults (Kalun's inputs, 2026-11-06). Used when this browser has no saved inputs.
+    const SAVED_DEFAULTS = () => JSON.parse("{\"v\":1,\"mode\":\"check\",\"dz\":{\"stage\":\"2\",\"single\":\"0\",\"mgw\":\"35000\",\"theta\":\"60\",\"k\":\"1\",\"re\":\"50\",\"oop\":\"0\",\"tilt\":\"\",\"shackle\":\"G-2130-OC 1\\\"\",\"rope\":\"7/8\\\"\",\"tol\":\"2.5\",\"fore\":\"1\",\"bset\":\"8\",\"tset\":\"0.875\",\"cheek\":\"1\",\"tc\":\"0.25\",\"Rc\":\"1.5\",\"w\":\"0.25\",\"L\":\"118\",\"B\":\"99\",\"sxM\":\"4\",\"syM\":\"4\",\"sxP\":\"4\",\"syP\":\"4\",\"xg\":\"0\",\"yg\":\"0\",\"zPe\":\"144\"},\"inputs\":{\"mgw\":\"35000\",\"n\":\"4\",\"theta\":\"60\",\"k\":\"1\",\"re\":\"50\",\"orient\":\"horizontal\",\"tilt\":\"\",\"oop\":\"0\",\"rope\":\"7/8\\\"\",\"tol\":\"\",\"shackle\":\"G-2130-OC 1\\\"\",\"t\":\"0.875\",\"R\":\"2.5\",\"Dh\":\"1.25\",\"b\":\"8\",\"h\":\"7.75\",\"tc\":\"0.25\",\"Rc\":\"1.5\",\"w\":\"0.25\",\"stage\":\"2\",\"fore\":\"1\",\"cheek\":\"1\",\"L\":\"118\",\"B\":\"99\",\"sxM\":\"4\",\"syM\":\"4\",\"sxP\":\"4\",\"syP\":\"4\",\"xg\":\"0\",\"yg\":\"0\",\"zPe\":\"144\",\"slingLin\":\"144\"},\"checkInputs\":{\"mgw\":\"35000\",\"n\":\"4\",\"theta\":\"60\",\"k\":\"1\",\"re\":\"50\",\"orient\":\"horizontal\",\"tilt\":\"\",\"oop\":\"0\",\"rope\":\"7/8\\\"\",\"tol\":\"\",\"shackle\":\"G-2130-OC 1\\\"\",\"t\":\"0.875\",\"R\":\"2.5\",\"Dh\":\"1.25\",\"b\":\"8\",\"h\":\"7.75\",\"tc\":\"0.25\",\"Rc\":\"1.5\",\"w\":\"0.25\",\"stage\":\"2\",\"fore\":\"1\",\"cheek\":\"1\",\"L\":\"118\",\"B\":\"99\",\"sxM\":\"4\",\"syM\":\"4\",\"sxP\":\"4\",\"syP\":\"4\",\"xg\":\"0\",\"yg\":\"0\",\"zPe\":\"144\",\"slingLin\":\"144\"},\"checkSeeded\":true}");
     function saveInputs() {
       try {
         localStorage.setItem(INPUTS_KEY, JSON.stringify({
@@ -2235,7 +2237,7 @@
       Object.assign(dz, DZ_DEFAULTS());
       inputs = defaultCheckInputs();
       checkInputs = Object.assign({}, inputs);
-      const saved = loadSavedInputs();
+      const saved = loadSavedInputs() || SAVED_DEFAULTS();
       if (saved) applySavedInputs(saved);
       if (mode === "check") {
         inputs = Object.assign({}, checkInputs);
@@ -2274,7 +2276,7 @@
       if (!form.querySelector(".layoutbar")) {
         const bar = document.createElement("div");
         bar.className = "layoutbar noprint";
-        bar.innerHTML = '<button type="button" id="resetLayout">Reset layout</button><button type="button" id="copyLayout">Copy layout</button>';
+        bar.innerHTML = '<button type="button" id="resetLayout">Reset layout</button><button type="button" id="copyLayout">Copy layout</button><button type="button" id="copyInputs">Copy inputs</button>';
         form.insertBefore(bar, form.firstChild);
       }
     }
@@ -2308,6 +2310,12 @@
         const done = () => { e.target.textContent = "Copied"; setTimeout(() => { e.target.textContent = "Copy layout"; }, 1200); };
         if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => { prompt("Layout", text); });
         else prompt("Layout", text);
+      } else if (e.target.id === "copyInputs") {
+        saveInputs();
+        const text = localStorage.getItem(INPUTS_KEY) || "";
+        const done = () => { e.target.textContent = "Copied"; setTimeout(() => { e.target.textContent = "Copy inputs"; }, 1200); };
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => { prompt("Inputs", text); });
+        else prompt("Inputs", text);
       }
     });
 

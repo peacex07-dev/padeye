@@ -422,9 +422,9 @@
       thFit = { name: "Thimble fits shackle bow", ok: false, text: gapFit.text };
     }
     const fits = [
-      { name: "Hole clears max pin (d x 1.03)", ok: Dh >= pinMax, text: `Dh ${pythonFixed(Dh, 3)} >= ${pythonFixed(pinMax, 3)} in` },
+      { name: "Hole clears pin: Dh >= pin + 3 % [DNV 2.7-1]", ok: Dh >= pinMax, text: `Dh ${pythonFixed(Dh, 3)} >= ${pythonFixed(pinMax, 3)} in` },
       {
-        name: "Hole clearance <= 6 % of pin [4.4.1]",
+        name: "Hole clearance: Dh <= pin + 6 % [DNV 2.7-1]",
         ok: Dh <= holeMax + 1e-9,
         text: `Dh ${pythonFixed(Dh, 3)} <= ${pythonFixed(holeMax, 3)} in (${pythonFixed((Dh - d) / d * 100, 1)} %)`,
       },

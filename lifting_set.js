@@ -364,7 +364,14 @@
     } catch (e) {
       geo = { error: String(e && e.message || e), legs: [] };
     }
-    const fr = forerunner ? selectSling(wllMinT) : null;
+    let fr = null;
+    if (forerunner) {
+      if (opts.foreLabel) {
+        fr = ropeByLabel(opts.foreLabel);
+        if (fr) { fr.util = tToLb(wllMinT) / fr.wll_lb; fr.too_small = fr.wll_lb < tToLb(wllMinT); fr.picked = true; }
+      }
+      if (!fr) fr = selectSling(wllMinT);
+    }
     if (fr) {
       let zMaster = 0.0;
       if (geo && geo.legs && geo.legs.length && opts.zPe != null) {
@@ -373,7 +380,26 @@
       }
       Object.assign(fr, forerunnerLength(fr.d_in, zMaster));
       fr.thimble = selectThimble(fr.d_in);
+      fr.auto_length = fr.length;
+      if (Number.isFinite(opts.foreLenIn) && opts.foreLenIn > 0) {
+        fr.length = opts.foreLenIn; fr.len_set = true; fr.len_util = fr.need / opts.foreLenIn;
+      }
       if (reach) fr.z_top = Math.max(0.0, reach.z_reach - fr.length);
+    }
+    let ml = nLegs === 1 ? null : selectMasterLink(wllMinT);
+    const mlAuto = ml;
+    if (nLegs !== 1 && opts.mlStock) {
+      const row = CROSBY_A1346.find((r) => r[0] === opts.mlStock);
+      if (row) {
+        const [stock, wllLb, g100, g80, A, B, C] = row;
+        ml = { stock, wll_lb: wllLb, g100, g80, A, B, C, util: tToLb(wllMinT) / wllLb, picked: true,
+          inside_ok: C >= ML_MIN_INSIDE_IN[0] - 0.005 && B >= ML_MIN_INSIDE_IN[1] - 0.005 };
+      }
+    }
+    let slingSet = null;
+    if (Number.isFinite(opts.slingLenIn) && opts.slingLenIn > 0 && geo && geo.legs && geo.legs.length) {
+      const need = Math.max(...geo.legs.map((g) => g.L));
+      slingSet = { L: opts.slingLenIn, need, util: need / opts.slingLenIn };
     }
     return {
       mgw_lb: mgwLb, n_legs: nLegs, angle_h: nLegs === 1 ? 90.0 : angleHDeg, beta: betaDeg,
@@ -381,7 +407,7 @@
       leg, thimble: leg ? selectThimble(leg.d_in, sh) : null,
       shackle: sh, smallest_shackle: smallest,
       forerunner: fr,
-      master_link: nLegs === 1 ? null : selectMasterLink(wllMinT),
+      master_link: ml, master_link_auto: mlAuto, sling_set: slingSet,
       rope_spec: ROPE_SPEC,
       geo, reach, z_pe: opts.zPe == null ? null : opts.zPe,
     };
@@ -502,7 +528,7 @@
   }
 
   return {
-    design, selectSling, selectMasterLink, selectThimble, selectShackle, ropeWllLb,
+    design, CROSBY_A1346, selectSling, selectMasterLink, selectThimble, selectShackle, ropeWllLb,
     forerunnerLength, computeGeo, liftGeometry, reachCheck, ftIn, ftInShort, slingLegLengthText,
     US_ROPE_SIZES, tToLb, ROPE_SPEC, summarySentence, orderLine, ORIENTATIONS, LAID_OVER,
   };

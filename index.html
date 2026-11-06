@@ -2143,7 +2143,7 @@
     document.getElementById("print").onclick = () => { paintPrintMeta(); window.print(); };
 
     const INPUTS_KEY = "padeye.inputs.v1";
-    const DZ_DEFAULTS = () => ({ stage: "1", single: "0", mgw: "50000", theta: "45", k: "1", re: "50", oop: "0", tilt: "", shackle: "auto", rope: "auto", tol: "0", fore: "0", bset: "", tset: "", cheek: "0", tc: "", Rc: "", w: "", L: "144", B: "144", sxM: "6", syM: "6", sxP: "6", syP: "6", xg: "0", yg: "0", zPe: "104" });
+    const DZ_DEFAULTS = () => ({ stage: "2", single: "0", mgw: "35000", theta: "60", k: "1", re: "50", oop: "0", tilt: "", shackle: "G-2130-OC 1\"", rope: "7/8\"", tol: "2.5", fore: "1", bset: "8", tset: "0.875", cheek: "1", tc: "0.25", Rc: "1.5", w: "0.25", L: "118", B: "99", sxM: "4", syM: "4", sxP: "4", syP: "4", xg: "0", yg: "0", zPe: "144" });
     function defaultCheckInputs() {
       const b = PadEye.blankSheet();
       b.stage = stageFromNO(b.n, b.orient);

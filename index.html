@@ -138,11 +138,19 @@
       header { margin: 0 0 4px !important; padding: 4px 6px !important; }
       h1 { font-size: 11pt !important; }
       .muted, .devcredit, .printmeta { font-size: 8pt !important; }
-      main { display: block !important; }
-      #modebar, #topbar, #form, #designOut, #eqs, main > div:has(> #views), main > div:has(> #ucR) {
-        order: unset !important; position: static !important; width: 100% !important; max-width: 100% !important;
-        max-height: none !important; overflow: visible !important;
+      main { display: flex !important; flex-direction: column !important; }
+      #modebar { order: 0 !important; display: none !important; }
+      #topbar { order: 1 !important; position: static !important; width: 100% !important; max-width: 100% !important; max-height: none !important; overflow: visible !important; }
+      #form { order: 2 !important; position: static !important; width: 100% !important; max-width: 100% !important; }
+      /* Figures immediately after the spreadsheet, before designOut/CHECKS */
+      main > div:has(> #views) {
+        order: 3 !important; display: block !important; visibility: visible !important;
+        position: static !important; width: 100% !important; max-width: 100% !important;
+        max-height: none !important; overflow: visible !important; opacity: 1 !important;
       }
+      #designOut { order: 4 !important; position: static !important; width: 100% !important; max-width: 100% !important; }
+      #eqs { order: 5 !important; position: static !important; width: 100% !important; max-width: 100% !important; }
+      main > div:has(> #ucR) { order: 3 !important; }
       #form, #topbar, #designOut, #eqs, .lsnote, .gaprep { width: 100% !important; max-width: 100% !important; }
       #topbar { position: static !important; border: 0 !important; padding: 0 !important; }
       .stats { display: flex !important; flex-wrap: nowrap !important; margin: 4px 0 !important; gap: 0 !important; }
@@ -153,7 +161,7 @@
       #form .fgrid { display: block !important; width: 100% !important; }
       #form .fgrid > * { padding: 0 !important; border-bottom: 0.5pt solid #ddd !important; }
       #form .colhead { display: grid !important;
-        grid-template-columns: 28px 1.35fr 1.1fr 0.95fr 32px 36px !important;
+        grid-template-columns: 54px minmax(0, 1.3fr) minmax(0, 1.05fr) minmax(0, 0.95fr) 28px 34px !important;
         grid-template-areas: "sym lab req inp unit st" !important;
         column-gap: 4px !important; padding: 1px 0 !important; margin: 2px 0 0 !important;
         font-size: 7.5pt !important; font-weight: 700 !important; }
@@ -169,13 +177,29 @@
       #form .fgrid > label.row[data-mark="shackle"], #form .fgrid > label.row[data-mark="rope"],
       #form .read[data-mark="ml"] {
         display: grid !important; width: 100% !important; grid-column: auto !important;
-        grid-template-columns: 28px 1.35fr 1.1fr 0.95fr 32px 36px !important;
+        grid-template-columns: 54px minmax(0, 1.3fr) minmax(0, 1.05fr) minmax(0, 0.95fr) 28px 34px !important;
         grid-template-areas: "sym lab req inp unit st" !important;
         column-gap: 4px !important; row-gap: 0 !important; align-items: center !important;
         padding: 0.5px 0 !important; font-size: 8pt !important;
       }
-      #form label.row > .sym, #form .read > .sym { grid-area: sym !important; display: block !important; font-size: 8pt !important; }
-      #form label.row > :nth-child(2), #form .read > :nth-child(2) { grid-area: lab !important; font-size: 8pt !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+      #form label.row > .sym, #form .read > .sym {
+        grid-area: sym !important; display: block !important; font-size: 7pt !important;
+        white-space: nowrap !important; overflow: hidden !important; text-overflow: clip !important;
+        width: 100% !important; max-width: 54px !important; box-sizing: border-box !important;
+        line-height: 1.15 !important; padding-right: 3px !important; margin: 0 !important;
+      }
+      #form label.row > :nth-child(2), #form .read > :nth-child(2) {
+        grid-area: lab !important; font-size: 8pt !important; white-space: nowrap !important;
+        overflow: hidden !important; text-overflow: ellipsis !important; min-width: 0 !important;
+      }
+      #form .read > *, #form label.row > * { min-width: 0 !important; max-width: 100% !important; }
+      #form .read[data-mark="wllmin"] > .sym, #form .read[data-mark="wlls"] > .sym {
+        font-size: 6.5pt !important; letter-spacing: -0.04em !important;
+      }
+      /* WLLmin / long symbols: keep symbol in its column, never overlap label */
+      #form .read[data-mark="ml"] > .sym, #form .read[data-mark="wlls"] > .sym, #form label.row > .sym {
+        letter-spacing: -0.02em;
+      }
       #form .req { grid-area: req !important; display: block !important; font-size: 7.5pt !important; color: #555 !important;
         white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
       #form .req:empty { visibility: hidden !important; }
@@ -194,19 +218,54 @@
       .lsnote .lsrow { grid-template-columns: 72px minmax(0, 1fr) !important; }
       .lsnote .lslabel { font-size: 7pt !important; }
       .lsnote .lsbody.order { font-size: 7.5pt !important; }
-      /* Figures after tables, two per row, compact */
-      .drawings { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 6px !important; margin-top: 4px !important; }
-      .panel { break-inside: avoid; page-break-inside: avoid; padding: 4px !important; }
+      /* Figures MUST print: kill screen vh/max-width rules that collapse them */
+      main > div:has(> #views), #views, #views .drawings, #views .panel {
+        display: block !important; visibility: visible !important;
+        position: static !important; max-height: none !important; height: auto !important;
+        overflow: visible !important; opacity: 1 !important;
+      }
+      #views .drawings {
+        display: grid !important; grid-template-columns: 1fr 1fr !important;
+        gap: 8px !important; margin-top: 6px !important; width: 100% !important;
+      }
+      #views .panel, #views .panel.shk, #views .panel.front, #views .panel.bowp {
+        display: block !important; visibility: visible !important;
+        break-inside: avoid !important; page-break-inside: avoid !important;
+        padding: 4px 6px !important; overflow: visible !important;
+        max-height: none !important; height: auto !important;
+      }
+      #views .panel.front { grid-column: auto !important; }
+      #views .panel.bowp { grid-column: auto !important; }
+      #views .drawings .panel svg,
+      #views .panel.front svg,
+      #views #side svg,
+      #views #post svg,
+      #views .panel.bowp svg {
+        display: block !important; visibility: visible !important;
+        width: auto !important; max-width: 100% !important;
+        max-height: 2.15in !important; height: auto !important;
+        min-height: 0.9in !important;
+        -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+      }
+      #views .panel.front svg { max-height: 2.35in !important; min-height: 1.1in !important; }
+      #views .panel.bowp svg { max-height: 1.0in !important; min-height: 0.5in !important; }
+      .shkfig { display: flex !important; gap: 6px !important; align-items: flex-start !important; visibility: visible !important; }
+      .shkfig .shkimgwrap {
+        display: block !important; visibility: visible !important;
+        flex: 0 0 auto !important; width: 1.35in !important; max-width: 1.35in !important;
+      }
+      .shkfig .shkimgwrap img {
+        display: block !important; visibility: visible !important;
+        width: 100% !important; height: auto !important; max-height: 2.4in !important;
+        min-height: 1.2in !important; object-fit: contain !important;
+        -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+      }
+      .shkfig .shkdims { display: block !important; visibility: visible !important; }
+      .shkfig .shkdims table { font-size: 7.5pt !important; }
+      .shkfig .shkcap { display: block !important; font-size: 7pt !important; }
       table, .stat, .lsnote, .gaprep, tr, h2, #topbar .stats { break-inside: avoid; page-break-inside: avoid; }
       .tscroll { overflow: visible !important; max-height: none !important; }
       table, th, td { font-size: 7.5pt !important; padding: 1px 4px !important; }
-      #views .drawings .panel svg { max-height: 1.85in !important; width: auto !important; max-width: 100% !important; }
-      #views .panel.front svg { max-height: 2.1in !important; }
-      #views .panel.bowp svg { max-height: 0.9in !important; }
-      .shkfig { gap: 4px !important; }
-      .shkfig .shkimgwrap { max-width: 1.15in !important; width: 1.15in !important; }
-      .shkfig .shkimgwrap img { max-height: 2.1in !important; }
-      .shkfig .shkdims table { font-size: 7.5pt !important; }
       .gaprep { margin-top: 4px !important; font-size: 7.5pt !important; }
       .gaprep th, .gaprep td { padding: 1px 3px !important; font-size: 7.5pt !important; }
       #designOut { margin-top: 2px !important; }
